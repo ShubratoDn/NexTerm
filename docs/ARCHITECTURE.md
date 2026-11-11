@@ -51,6 +51,7 @@ interface Conn {
 |---|---|
 | SSH | [`ssh2`](https://github.com/mscdex/ssh2): shell channel, keepalive, password / key / agent / keyboard-interactive |
 | Telnet | `net` socket plus a small option-negotiation filter (`src/main/telnet-filter.ts`: ECHO, SGA, terminal type, window size) |
+| SFTP only | The same `ssh2` connection, but only the file-transfer subsystem is opened (no shell); the connect fails clearly if the server has no SFTP |
 | Local | PTY through `@lydell/node-pty` (ConPTY on Windows) |
 | Serial | [`serialport`](https://serialport.io/) |
 
@@ -87,6 +88,7 @@ The file browser is a renderer component (`src/renderer/sftp-pane.ts`) backed by
 | `conn:write`, `conn:resize`, `conn:close` | send | Input, terminal size, close |
 | `conn:data`, `conn:closed` | main → renderer | Output and lifecycle |
 | `sftp:*` | invoke | List, transfer, rename, create, delete |
+| `import:detect`, `import:pick`, `import:preview`, `import:commit` | invoke | Find, preview and import connections from other tools |
 | `drop:register` | send | Registers a file the user dropped on the window |
 | `ui:titlebar` | send | Syncs the native caption-button colours with the theme |
 
@@ -99,7 +101,8 @@ The file browser is a renderer component (`src/renderer/sftp-pane.ts`) backed by
 5. **Secrets.** Passwords are encrypted with `safeStorage` (DPAPI on Windows, Keychain on macOS, libsecret on Linux) before touching disk; if encryption is unavailable they are not persisted. Secrets are never sent back to the renderer: it only learns `hasPassword`.
 6. **Host keys.** `known_hosts.json` stores SHA-256 fingerprints. Unknown host: the user must confirm. Changed key: the connection is refused and the specific reason is shown.
 7. **Drag-and-drop uploads.** The preload script registers the path of each file the user actually dropped; the main process uploads only registered paths, once. A compromised page cannot ask it to read arbitrary files.
-8. **Fail closed.** Opening a connection that was closed or retried while pending closes the late connection instead of adopting it.
+8. **Importing connections.** Parsers in `src/main/importers` are pure functions that read only connection fields (name, host, port, user, key *path*, folder). Passwords and other sections of the source files are never read. The main process only opens a file that it detected itself or that the user chose in the native file dialog (an allow-list of resolved paths), caps file size, and validates every imported session with the same rules as a hand-made one.
+9. **Fail closed.** Opening a connection that was closed or retried while pending closes the late connection instead of adopting it.
 
 ## Testing
 

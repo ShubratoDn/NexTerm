@@ -4,6 +4,18 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-11
+
+### Added
+- **Import connections** from MobaXterm (`MobaXterm.ini` or an exported `.mxtsessions` file), PuTTY (registry, or `~/.putty/sessions`) and OpenSSH config files, with automatic detection, a grouped and searchable preview, duplicate detection and a one-click import
+- First-run welcome card that offers the connections it found, so a new install does not start empty
+- **SFTP-only sessions** for servers that do not allow a shell: a full-width file browser with no terminal
+- A clear message for PuTTY key formats that cannot be used directly, with the conversion steps
+
+### Fixed
+- The app could fail to open its window if the legacy data migration threw
+- Key files with no file extension were not recognised as keys when importing
+
 ## [0.1.0] - 2026-11-11
 
 First public version.
@@ -24,5 +36,6 @@ First public version.
 - Smaller package: Chromium translation files other than en-US are not shipped (about 48 MB saved)
 - Generated brand assets (icons, banner, social preview) from a single source logo
 
-[Unreleased]: https://github.com/ShubratoDn/NexTerm/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ShubratoDn/NexTerm/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ShubratoDn/NexTerm/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ShubratoDn/NexTerm/releases/tag/v0.1.0

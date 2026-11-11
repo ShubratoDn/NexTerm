@@ -1,7 +1,7 @@
 {
   "name": "nexterm",
   "productName": "NexTerm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A fast, secure terminal workspace: SSH with an SFTP file browser, Telnet, serial and local shells in one tabbed window.",
   "keywords": [
     "ssh",
