@@ -1,0 +1,62 @@
+{
+  "name": "nexterm",
+  "productName": "NexTerm",
+  "version": "0.1.0",
+  "description": "A fast, secure terminal workspace: SSH with an SFTP file browser, Telnet, serial and local shells in one tabbed window.",
+  "keywords": [
+    "ssh",
+    "sftp",
+    "telnet",
+    "serial",
+    "terminal",
+    "terminal-emulator",
+    "ssh-client",
+    "electron",
+    "typescript",
+    "xterm"
+  ],
+  "homepage": "https://github.com/ShubratoDn/NexTerm#readme",
+  "bugs": {
+    "url": "https://github.com/ShubratoDn/NexTerm/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShubratoDn/NexTerm.git"
+  },
+  "license": "MIT",
+  "author": "Shubrato Debnath",
+  "private": true,
+  "main": "dist/main/main.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "node scripts/build-renderer.mjs",
+    "build": "npm run build:main && npm run build:renderer",
+    "start": "npm run build && node scripts/start.mjs",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "test": "npm run build:main && node --test dist/test/",
+    "package": "npm run build && node scripts/package.mjs",
+    "brand": "node scripts/start.mjs scripts/make-brand.cjs"
+  },
+  "dependencies": {
+    "@lydell/node-pty": "^1.2.0-beta.18",
+    "serialport": "^13.0.0",
+    "ssh2": "^1.17.0"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@types/node": "^26.6.6",
+    "@types/ssh2": "^1.15.6",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/xterm": "^6.0.0",
+    "electron": "^45.3.0",
+    "esbuild": "^0.28.2",
+    "lucide-static": "^1.72.0",
+    "typescript": "^7.0.2"
+  }
+}
