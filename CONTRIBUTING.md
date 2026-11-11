@@ -30,9 +30,22 @@ Requires Node.js 22 or newer. If Electron did not download, run `node node_modul
 | `npm run typecheck` | Strict type-check of all code |
 | `npm test` | Compile and run the test suite |
 | `npm run package` | Build a portable app folder into `release/` |
+| `npm run release` | Type-check, test, package, zip and checksum the current platform's build |
+| `npm run package:linux` | Linux packages into `release/linux/` (see below) |
 | `npm run brand` | Regenerate logos, icons and banner from `assets/icon.svg` |
 
 Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before changing anything that crosses the main / renderer boundary.
+
+### Linux packages
+
+`npm run package:linux` builds with [electron-builder](https://www.electron.build/). Which formats you get depends on the machine:
+
+| Build machine | Formats |
+|---|---|
+| Linux (or WSL / a Linux VM) | AppImage, `.deb`, `.rpm` and `.tar.gz` |
+| Windows or macOS | `.tar.gz` only (the others need Linux packaging tools). The script stages a copy with the Linux native modules installed and re-creates the archive with correct Unix permissions |
+
+Choose formats with `npm run package:linux -- --targets=deb,rpm` and the CPU with `-- --arch=arm64`. To build everything on Windows, install WSL (`wsl --install`), install Node.js 22+ inside it, clone the repository there and run the same command.
 
 ## Making a change
 

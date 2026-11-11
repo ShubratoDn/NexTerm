@@ -39,6 +39,7 @@
     "test": "npm run build:main && node --test dist/test/",
     "package": "npm run build && node scripts/package.mjs",
     "release": "node scripts/release.mjs",
+    "package:linux": "npm run build && node scripts/package-linux.mjs",
     "brand": "node scripts/start.mjs scripts/make-brand.cjs"
   },
   "dependencies": {
@@ -56,8 +57,10 @@
     "@xterm/addon-search": "^0.16.0",
     "@xterm/xterm": "^6.0.0",
     "electron": "^45.3.0",
+    "electron-builder": "^26.18.0",
     "esbuild": "^0.28.2",
     "lucide-static": "^1.72.0",
+    "tar": "^7.5.22",
     "typescript": "^7.0.2"
   }
 }

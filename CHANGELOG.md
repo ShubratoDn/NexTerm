@@ -4,6 +4,10 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Added
+- Linux packaging: `npm run package:linux` builds a `.tar.gz` on any OS and AppImage, `.deb` and `.rpm` on Linux (or WSL)
+- 512 px application icon generated from the same source logo
+
 ## [0.2.0] - 2026-11-11
 
 ### Added

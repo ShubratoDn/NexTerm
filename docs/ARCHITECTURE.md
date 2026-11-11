@@ -118,4 +118,5 @@ The renderer is verified by driving the built application through the Chrome Dev
 - `tsc` compiles main, preload and tests to `dist/`.
 - `esbuild` bundles the renderer into `dist/renderer/app.js` and copies HTML, CSS, fonts and the logo.
 - `scripts/package.mjs` produces a portable folder with `@electron/packager`. Native add-ons are loaded from disk, so the app is not packed into an asar archive.
+- `scripts/package-linux.mjs` produces Linux packages with `electron-builder` (config in `electron-builder.config.cjs`). On Windows/macOS it first stages a copy of the app with the Linux build of `node-pty` installed (`npm ci --os=linux`), because a Windows `node_modules` only contains Windows binaries, and it re-creates the `.tar.gz` with explicit Unix permissions since Windows cannot record them.
 - `scripts/make-brand.cjs` renders every logo asset from `assets/icon.svg`, the single source of the mark.

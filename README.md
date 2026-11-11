@@ -94,10 +94,22 @@ Working across servers, network gear and your own machine usually means a termin
 
 It is a portable folder: no installer, nothing written outside the folder except your settings in `%APPDATA%\NexTerm`. The build is not code-signed, so Windows SmartScreen may show *Windows protected your PC*; choose **More info → Run anyway**. You can verify the download against `SHA256SUMS.txt` on the release page.
 
+### Download (Linux, 64-bit)
+
+```bash
+tar -xzf NexTerm-v0.2.0-linux-x64.tar.gz
+cd NexTerm-v0.2.0-linux-x64
+./nexterm
+```
+
+On Ubuntu 24.04 and newer (which restrict unprivileged user namespaces) Electron's sandbox may refuse to start; run `./nexterm --no-sandbox` or follow the two-line fix in the included `README.txt`. Serial ports need membership of the `dialout` group.
+
+This is a portable archive. **AppImage, `.deb` and `.rpm` packages are not published yet**: they have to be built on Linux (`npm run package:linux` on a Linux machine, VM or WSL), and the configuration for them is ready. The Linux archive has been inspected (executable, native modules, permissions) but **has not yet been run on a real Linux machine**; please report what you find.
+
 ### Requirements (building from source)
 
 - [Node.js](https://nodejs.org/) 22 or newer
-- Windows 10/11 (the tested platform). macOS and Linux should work but are not tested yet; see [Platform support](#platform-support).
+- Windows 10/11 (the tested platform). Linux has a portable build that is not yet tested on a real machine; macOS is untested. See [Platform support](#platform-support).
 
 ### Run from source
 
@@ -205,7 +217,8 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 | Platform | Status |
 |---|---|
 | Windows 10 / 11 | Tested |
-| macOS, Linux | Not tested yet. Contributions and bug reports welcome |
+| Linux (x64) | Portable `.tar.gz` available; built and inspected, not yet run on a real Linux machine |
+| macOS | Not tested yet. Contributions and bug reports welcome |
 
 ## Roadmap
 
@@ -215,7 +228,8 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 - [ ] Split panes
 - [ ] Recursive folder upload and download
 - [ ] Session import / export
-- [ ] Installer, code signing and auto-update
+- [ ] Publish AppImage, `.deb` and `.rpm` (configured; needs a Linux build machine)
+- [ ] Windows installer, code signing and auto-update
 - [ ] Macros and snippets
 - [ ] Remote desktop and X11 forwarding (exploratory)
 

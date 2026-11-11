@@ -71,6 +71,13 @@ app.whenReady().then(async () => {
   win.destroy();
   const pngs = SIZES.map((s) => ({ s, buf: (s === 256 ? full : full.resize({ width: s, height: s, quality: 'best' })).toPNG() }));
   fs.writeFileSync(path.join(assets, 'icon.png'), pngs.find((p) => p.s === 256).buf);
+
+  // Linux packages want a 512 px icon; render it straight from the vector so it stays sharp.
+  const big = new BrowserWindow({ show: false, width: 512, height: 512, useContentSize: true, transparent: true, frame: false, webPreferences: { offscreen: true } });
+  await big.loadURL('data:text/html;base64,' + Buffer.from(`<html><body style="margin:0;background:transparent"><img src="${mark}" width="512" height="512"></body></html>`).toString('base64'));
+  await new Promise((r) => setTimeout(r, 500));
+  fs.writeFileSync(path.join(assets, 'icon-512.png'), (await big.webContents.capturePage({ x: 0, y: 0, width: 512, height: 512 })).toPNG());
+  big.destroy();
   fs.mkdirSync(docs, { recursive: true });
   fs.writeFileSync(path.join(docs, 'logo.png'), full.resize({ width: 256, height: 256, quality: 'best' }).toPNG());
 
