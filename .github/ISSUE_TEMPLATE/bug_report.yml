@@ -1,0 +1,52 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. **Do not include passwords, private keys or real host names.**
+        For security problems, please use private reporting instead (see SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a new SSH session
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: session-type
+    attributes:
+      label: Session type
+      options: [SSH, SFTP browser, Telnet, Serial, Local shell, Not session related]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: NexTerm version
+      description: Shown in package.json, or the release you downloaded
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows 11, Windows 10, macOS, Linux, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or logs
+      description: Drag images here. Remove anything sensitive first.

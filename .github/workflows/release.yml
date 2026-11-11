@@ -1,0 +1,47 @@
+name: Release
+
+# Pushing a tag such as v0.2.0 builds a Windows package and attaches it to a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Package (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+      - name: Download the Electron binary
+        run: node node_modules/electron/install.js
+
+      - name: Test
+        run: npm test
+
+      - name: Package
+        run: npm run package
+
+      - name: Create archive
+        shell: pwsh
+        run: |
+          $dir = Get-ChildItem release -Directory | Select-Object -First 1
+          Compress-Archive -Path $dir.FullName -DestinationPath "NexTerm-${{ github.ref_name }}-win-x64.zip"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: NexTerm-${{ github.ref_name }}-win-x64.zip
+          generate_release_notes: true
