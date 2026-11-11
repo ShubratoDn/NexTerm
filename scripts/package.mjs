@@ -17,6 +17,15 @@ const out = await packager({
   asar: false,
   platform,
   arch: process.arch,
+  appCopyright: 'Copyright (c) 2026 Shubrato Debnath',
+  // Shown in the executable's Properties dialog (instead of Electron's defaults).
+  win32metadata: {
+    CompanyName: 'Shubrato Debnath',
+    FileDescription: 'NexTerm',
+    ProductName: 'NexTerm',
+    InternalName: 'NexTerm',
+    OriginalFilename: 'NexTerm.exe',
+  },
   ...(existsSync(iconFile) ? { icon: iconFile } : {}),
   ignore: [/^\/(src|scripts|docs|release|\.github)(\/|$)/, /^\/tsconfig.*\.json$/, /^\/(README|CHANGELOG|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY)\.md$/, /^\/\.[^/]+$/, /\.map$/],
 });

@@ -4,7 +4,7 @@
 
 <br>
 
-[![CI](https://github.com/ShubratoDn/NexTerm/actions/workflows/ci.yml/badge.svg)](https://github.com/ShubratoDn/NexTerm/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ShubratoDn/NexTerm?color=2f6df6&label=release)](https://github.com/ShubratoDn/NexTerm/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2f6df6.svg)](LICENSE)
 ![Electron](https://img.shields.io/badge/Electron-45-2f6df6)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-2f6df6)
@@ -74,7 +74,15 @@ Working across servers, network gear and your own machine usually means a termin
 
 ## Getting started
 
-### Requirements
+### Download (Windows)
+
+1. Download `NexTerm-v0.1.0-win-x64.zip` from the [Releases page](https://github.com/ShubratoDn/NexTerm/releases).
+2. Extract the zip anywhere, for example `C:\Apps\NexTerm`.
+3. Run `NexTerm.exe`.
+
+It is a portable folder: no installer, nothing written outside the folder except your settings in `%APPDATA%\NexTerm`. The build is not code-signed, so Windows SmartScreen may show *Windows protected your PC*; choose **More info → Run anyway**. You can verify the download against `SHA256SUMS.txt` on the release page.
+
+### Requirements (building from source)
 
 - [Node.js](https://nodejs.org/) 22 or newer
 - Windows 10/11 (the tested platform). macOS and Linux should work but are not tested yet; see [Platform support](#platform-support).
@@ -94,13 +102,12 @@ If your npm blocks install scripts, Electron's binary may not have been download
 node node_modules/electron/install.js
 ```
 
-### Build a portable app folder
+### Build a release
 
 ```bash
-npm run package        # output: release/NexTerm-<platform>-<arch>/
+npm run package        # portable app folder: release/NexTerm-<platform>-<arch>/
+npm run release        # the folder above, zipped, plus SHA256SUMS.txt
 ```
-
-The build is unsigned, so Windows SmartScreen may warn on first launch.
 
 ### Develop
 
