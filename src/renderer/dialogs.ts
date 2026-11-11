@@ -7,6 +7,7 @@ import { DEFAULT_SETTINGS } from '../shared/types';
 
 export const KIND_META: Record<SessionKind, { label: string; icon: IconName }> = {
   ssh: { label: 'SSH', icon: 'terminal' },
+  sftp: { label: 'SFTP', icon: 'folder' },
   telnet: { label: 'Telnet', icon: 'plug' },
   local: { label: 'Local', icon: 'square-terminal' },
   serial: { label: 'Serial', icon: 'cable' },
@@ -21,7 +22,7 @@ interface Ctx<T> {
   dlg: HTMLDialogElement;
 }
 
-function modal<T>(opts: { title: string; subtitle?: string; width?: number }, build: (c: Ctx<T>) => void, onCancel: T): Promise<T> {
+export function modal<T>(opts: { title: string; subtitle?: string; width?: number }, build: (c: Ctx<T>) => void, onCancel: T): Promise<T> {
   return new Promise<T>((resolve) => {
     const prev = document.activeElement as HTMLElement | null;
     const dlg = h('dialog', { class: 'modal', style: `--w:${opts.width ?? 520}px`, 'aria-label': opts.title });
@@ -57,12 +58,12 @@ function modal<T>(opts: { title: string; subtitle?: string; width?: number }, bu
   });
 }
 
-interface Field {
+export interface Field {
   el: HTMLElement;
   error: (msg: string | null) => void;
 }
 
-function field(label: string, control: HTMLElement, hint?: string): Field {
+export function field(label: string, control: HTMLElement, hint?: string): Field {
   const id = `f${Math.random().toString(36).slice(2, 8)}`;
   const target = control.matches('input, select') ? control : control.querySelector('input, select');
   if (target) target.id = id;
@@ -124,7 +125,7 @@ function passwordInput(placeholder = ''): { el: HTMLElement; input: HTMLInputEle
   return { el: h('div', { class: 'input-group' }, input, eye), input };
 }
 
-const btn = (label: string, cls: string, onclick: () => void, ic?: IconName) =>
+export const btn = (label: string, cls: string, onclick: () => void, ic?: IconName) =>
   h('button', { type: 'button', class: `btn ${cls}`, onclick }, ic ? icon(ic, 15) : null, label);
 
 function submitOnEnter(root: HTMLElement, fn: () => void): void {
@@ -239,9 +240,10 @@ export function sessionDialog(existing: SessionSummary | undefined, serialPorts:
     const serialSection = h('div', { class: 'section' }, h('div', { class: 'grid2' }, fSerial.el, fBaud.el));
 
     const refresh = () => {
-      netSection.classList.toggle('hidden', kind !== 'ssh' && kind !== 'telnet');
-      fUser.el.classList.toggle('hidden', kind !== 'ssh');
-      authSection.classList.toggle('hidden', kind !== 'ssh');
+      const sshLike = kind === 'ssh' || kind === 'sftp';
+      netSection.classList.toggle('hidden', !sshLike && kind !== 'telnet');
+      fUser.el.classList.toggle('hidden', !sshLike);
+      authSection.classList.toggle('hidden', !sshLike);
       fPass.el.classList.toggle('hidden', auth === 'agent');
       (fPass.el.querySelector('label') as HTMLElement).textContent = auth === 'key' ? 'Key passphrase' : 'Password';
       fKey.el.classList.toggle('hidden', auth !== 'key');
@@ -255,7 +257,7 @@ export function sessionDialog(existing: SessionSummary | undefined, serialPorts:
       const bad = (f: Field, m: string) => { f.error(m); ok = false; };
       [fName, fHost, fPort, fKey, fSerial].forEach((f) => f.error(null));
       const input: SessionInput = { id: e?.id, name: name.value.trim(), kind, folder: folder.value.trim() || undefined };
-      if (kind === 'ssh' || kind === 'telnet') {
+      if (kind === 'ssh' || kind === 'sftp' || kind === 'telnet') {
         input.host = host.value.trim();
         if (!input.host) bad(fHost, 'Enter a host name or IP address');
         else if (/\s/.test(input.host)) bad(fHost, 'A host name cannot contain spaces');
@@ -265,7 +267,7 @@ export function sessionDialog(existing: SessionSummary | undefined, serialPorts:
           else input.port = n;
         }
       }
-      if (kind === 'ssh') {
+      if (kind === 'ssh' || kind === 'sftp') {
         input.username = user.value.trim() || undefined;
         input.authMethod = auth;
         if (auth === 'key') {
@@ -318,9 +320,9 @@ export interface QuickResult {
 
 export function quickDialog(serialPorts: string[]): Promise<QuickResult | null> {
   return modal<QuickResult | null>({ title: 'Quick connect', subtitle: 'Connect without saving a session.', width: 480 }, ({ body, foot, close }) => {
-    let kind: 'ssh' | 'telnet' | 'serial' = 'ssh';
-    const seg = segmented<'ssh' | 'telnet' | 'serial'>(
-      (['ssh', 'telnet', 'serial'] as const).map((k) => ({ value: k, label: KIND_META[k].label, icon: KIND_META[k].icon })), 'ssh', (k) => { kind = k; refresh(); }, true);
+    let kind: 'ssh' | 'sftp' | 'telnet' | 'serial' = 'ssh';
+    const seg = segmented<'ssh' | 'sftp' | 'telnet' | 'serial'>(
+      (['ssh', 'sftp', 'telnet', 'serial'] as const).map((k) => ({ value: k, label: KIND_META[k].label, icon: KIND_META[k].icon })), 'ssh', (k) => { kind = k; refresh(); }, true);
     const addr = h('input', { class: 'input', placeholder: 'user@host:port', spellcheck: false, autocapitalize: 'off', autofocus: true });
     const fAddr = field('Address', addr);
     const preview = h('div', { class: 'hint' });
@@ -337,7 +339,7 @@ export function quickDialog(serialPorts: string[]): Promise<QuickResult | null> 
     const refresh = () => {
       net.classList.toggle('hidden', kind === 'serial');
       ser.classList.toggle('hidden', kind !== 'serial');
-      fPw.el.classList.toggle('hidden', kind !== 'ssh');
+      fPw.el.classList.toggle('hidden', kind !== 'ssh' && kind !== 'sftp');
       updatePreview();
     };
     const updatePreview = () => {
@@ -356,7 +358,7 @@ export function quickDialog(serialPorts: string[]): Promise<QuickResult | null> 
       if (!t) return fAddr.error('Enter an address such as admin@192.168.1.10:22');
       close({
         save: save.checked,
-        input: { name: t.host, kind, host: t.host, port: t.port, username: kind === 'ssh' ? t.username : undefined, authMethod: 'password', password: kind === 'ssh' && pw.input.value ? pw.input.value : undefined },
+        input: { name: t.host, kind, host: t.host, port: t.port, username: kind === 'ssh' || kind === 'sftp' ? t.username : undefined, authMethod: 'password', password: (kind === 'ssh' || kind === 'sftp') && pw.input.value ? pw.input.value : undefined },
       });
     };
 

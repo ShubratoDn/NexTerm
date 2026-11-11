@@ -16,6 +16,10 @@ const api: TermApi = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (p) => ipcRenderer.invoke('settings:set', p),
   listSerialPorts: () => ipcRenderer.invoke('serial:list'),
+  importDetect: () => ipcRenderer.invoke('import:detect'),
+  importPick: (source) => ipcRenderer.invoke('import:pick', source),
+  importPreview: (source, path) => ipcRenderer.invoke('import:preview', source, path),
+  importCommit: (items, skip) => ipcRenderer.invoke('import:commit', items, skip),
   pickKeyFile: () => ipcRenderer.invoke('dialog:key'),
 
   open: (req) => ipcRenderer.invoke('conn:open', req),

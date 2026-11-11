@@ -32,7 +32,23 @@ function expandHome(p: string): string {
   return p.startsWith('~') ? os.homedir() + p.slice(1) : p;
 }
 
-export function openSsh(s: ResolvedSession, size: Size, h: Handlers, verify: HostVerifier): Promise<Conn> {
+/** Reads a private key, translating PuTTY formats ssh2 cannot parse into an actionable message. */
+export function readPrivateKey(p: string): Buffer {
+  const buf = fs.readFileSync(expandHome(p));
+  const m = /^PuTTY-User-Key-File-(\d+): (\S+)/.exec(buf.subarray(0, 80).toString('latin1'));
+  if (m && (m[1] !== '2' || !/^ssh-(rsa|dss)$/.test(m[2]))) {
+    throw new Error(
+      `This PuTTY key (format ${m[1]}, ${m[2]}) cannot be used directly. In PuTTYgen choose Conversions > Export OpenSSH key, then select the exported file.`,
+    );
+  }
+  return buf;
+}
+
+/**
+ * Opens an SSH connection. In 'shell' mode it starts an interactive shell (SFTP stays available);
+ * in 'sftp' mode it only opens the file-transfer subsystem, for servers that do not allow a shell.
+ */
+export function openSsh(s: ResolvedSession, size: Size, h: Handlers, verify: HostVerifier, mode: 'shell' | 'sftp' = 'shell'): Promise<Conn> {
   return new Promise<Conn>((resolve, reject) => {
     const host = s.host!;
     const port = s.port ?? 22;
@@ -61,7 +77,7 @@ export function openSsh(s: ResolvedSession, size: Size, h: Handlers, verify: Hos
 
     try {
       if (s.authMethod === 'key') {
-        opts.privateKey = fs.readFileSync(expandHome(s.keyPath!));
+        opts.privateKey = readPrivateKey(s.keyPath!);
         if (s.password) opts.passphrase = s.password;
       } else if (s.authMethod === 'agent') {
         const sock = process.platform === 'win32' ? '\\\\.\\pipe\\openssh-ssh-agent' : process.env.SSH_AUTH_SOCK;
@@ -79,7 +95,31 @@ export function openSsh(s: ResolvedSession, size: Size, h: Handlers, verify: Hos
       finish(prompts.map(() => s.password ?? ''));
     });
 
+    const getSftp = () =>
+      (sftpP ??= new Promise<SFTPWrapper>((res, rej) =>
+        client.sftp((e, sftp) => {
+          if (e) {
+            sftpP = undefined;
+            rej(e);
+          } else res(sftp);
+        }),
+      ));
+
     client.on('ready', () => {
+      if (mode === 'sftp') {
+        // Prove the subsystem works now, so a server without SFTP fails the connect instead of an empty browser.
+        getSftp().then(
+          () => {
+            ready = true;
+            resolve({ write: () => undefined, resize: () => undefined, close: () => client.end(), sftp: getSftp });
+          },
+          (e: Error) => {
+            client.end();
+            reject(new Error(`The server did not start the SFTP subsystem: ${e.message}`));
+          },
+        );
+        return;
+      }
       client.shell({ term: 'xterm-256color', cols: size.cols, rows: size.rows }, (err, stream) => {
         if (err) {
           client.end();
@@ -97,15 +137,7 @@ export function openSsh(s: ResolvedSession, size: Size, h: Handlers, verify: Hos
           write: (d) => void stream.write(d),
           resize: (c, r) => void stream.setWindow(r, c, 0, 0),
           close: () => client.end(),
-          sftp: () =>
-            (sftpP ??= new Promise<SFTPWrapper>((res, rej) =>
-              client.sftp((e, sftp) => {
-                if (e) {
-                  sftpP = undefined;
-                  rej(e);
-                } else res(sftp);
-              }),
-            )),
+          sftp: getSftp,
         });
       });
     });

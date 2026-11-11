@@ -38,5 +38,5 @@ export function parseQuickTarget(input: string): QuickTarget | null {
 }
 
 export function defaultPort(kind: SessionKind): number | undefined {
-  return kind === 'ssh' ? 22 : kind === 'telnet' ? 23 : undefined;
+  return kind === 'ssh' || kind === 'sftp' ? 22 : kind === 'telnet' ? 23 : undefined;
 }

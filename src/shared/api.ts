@@ -1,4 +1,9 @@
 import type {
+  ImportPreview,
+  ImportResult,
+  ImportSourceId,
+  ImportSourceInfo,
+  ImportedSession,
   OpenRequest,
   OpenResult,
   SerialPortInfo,
@@ -21,6 +26,13 @@ export interface TermApi {
   getSettings(): Promise<Settings>;
   setSettings(patch: Partial<Settings>): Promise<Settings>;
   listSerialPorts(): Promise<SerialPortInfo[]>;
+
+  /** Looks for MobaXterm, PuTTY and OpenSSH connections on this computer (no secrets are read). */
+  importDetect(): Promise<ImportSourceInfo[]>;
+  /** Lets the user choose a file for a source; resolves with its path or null. */
+  importPick(source: ImportSourceId): Promise<string | null>;
+  importPreview(source: ImportSourceId, path: string): Promise<ImportPreview>;
+  importCommit(items: ImportedSession[], skipDuplicates: boolean): Promise<ImportResult>;
   pickKeyFile(): Promise<string | null>;
 
   open(req: OpenRequest): Promise<OpenResult>;

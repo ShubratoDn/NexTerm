@@ -2,6 +2,7 @@ import { $, h, put } from './dom';
 import { icon } from './icons';
 import type { IconName } from './icons';
 import { askConfirm, quickDialog, sessionDialog, settingsDialog, KIND_META } from './dialogs';
+import { importDialog } from './import-dialog';
 import { openPalette } from './palette';
 import type { PaletteItem } from './palette';
 import { initSidebar, renderSidebar } from './sidebar';
@@ -12,7 +13,7 @@ import {
   activate, activeTab, allTabs, applySettingsToTerminals, closeTab, connectedSessionIds, cycle, duplicateTab, hooks, initWorkspaceEvents,
   isMultiExec, openLocal, openQuick, openSaved, reconnectActive, setMultiExec, toggleFiles, toggleFind,
 } from './workspace';
-import type { SessionSummary } from '../shared/types';
+import type { ImportSourceId, SessionSummary } from '../shared/types';
 
 const api = window.termApi;
 const isMac = api.platform === 'darwin';
@@ -75,6 +76,34 @@ async function duplicateSession(s: SessionSummary): Promise<void> {
   }
 }
 
+/** Looks for MobaXterm / PuTTY / OpenSSH connections so the welcome screen can offer them. */
+async function refreshImportSources(): Promise<void> {
+  try {
+    state.importSources = await api.importDetect();
+  } catch {
+    state.importSources = [];
+  }
+  emitChange();
+}
+
+async function importConnections(source?: ImportSourceId): Promise<void> {
+  try {
+    await refreshImportSources(); // pick up changes made since startup
+    const result = await importDialog(state.importSources, source);
+    if (!result) return;
+    await reloadSessions();
+    if (result.added === 0) toast('info', 'Nothing was imported.');
+    else
+      toast(
+        'success',
+        `Imported ${result.added} connection${result.added === 1 ? '' : 's'}. Double-click one to connect; you will be asked for the password the first time.`,
+        { ms: 9000 },
+      );
+  } catch (e) {
+    toast('error', cleanError(e));
+  }
+}
+
 async function quickConnect(): Promise<void> {
   const res = await quickDialog(await serialPorts());
   if (!res) return;
@@ -129,8 +158,9 @@ function paletteItems(): PaletteItem[] {
   act('New session…', 'plus', () => void editSession(), `${mod}+Shift+N`);
   act('Quick connect…', 'zap', () => void quickConnect(), `${mod}+Shift+K`);
   act('New local terminal', 'square-terminal', () => openLocal(), `${mod}+Shift+T`);
+  act('Import connections…', 'download', () => void importConnections(), undefined, 'From MobaXterm, PuTTY or an SSH config');
   if (t) {
-    act('Find in terminal', 'search', () => toggleFind(t, true), `${mod}+Shift+F`);
+    if (t.kind !== 'sftp') act('Find in terminal', 'search', () => toggleFind(t, true), `${mod}+Shift+F`);
     act('Duplicate this tab', 'copy-plus', () => duplicateTab(t));
     act('Close tab', 'x', () => void closeTab(t.id), `${mod}+Shift+W`);
     if (t.state === 'closed' || t.state === 'failed') act('Reconnect', 'rotate-cw', reconnectActive);
@@ -188,14 +218,37 @@ function renderWelcome(): void {
     h('button', { class: 'action', onclick: run }, h('span', { class: 'glyph' }, icon(ic, 17)), h('span', { class: 'txt' }, h('div', { class: 't' }, title), h('div', { class: 'd' }, desc)), sc ? h('kbd', {}, sc) : null);
 
   const recent = recentSessions(5);
+
+  // First run: lead with importing, so nobody starts from an empty list.
+  let onboard: HTMLElement | null = null;
+  if (state.sessions.length === 0) {
+    const found = state.importSources.filter((s) => s.found.length > 0);
+    const rows = found.map((s) => {
+      const total = s.found.reduce((a, l) => a + l.count, 0);
+      return h('div', { class: 'ob-row' },
+        h('span', { class: 'src-icon' }, icon(s.id === 'mobaxterm' ? 'server' : s.id === 'putty' ? 'terminal' : 'key-round', 16)),
+        h('div', { class: 'txt' }, h('div', { class: 't' }, s.label), h('div', { class: 'd' }, `${total} connection${total === 1 ? '' : 's'} found on this computer`)),
+        h('button', { class: 'btn primary', onclick: () => void importConnections(s.id) }, 'Review & import'));
+    });
+    onboard = h('div', { class: 'onboard' },
+      h('div', { class: 'ob-head' }, h('span', { class: 'ob-icon' }, icon('download', 19)),
+        h('div', {}, h('h2', {}, found.length ? 'Bring your connections with you' : 'Already using another SSH tool?'),
+          h('p', {}, found.length ? 'NexTerm found connections from other tools. Import them in a few clicks instead of typing each server again.' : 'Import your saved servers from MobaXterm, PuTTY or an SSH config instead of adding them one by one.'))),
+      ...rows,
+      h('div', { class: 'ob-foot' }, h('span', {}, 'Passwords are never imported.'), h('span', { class: 'spacer' }),
+        h('button', { class: 'btn', onclick: () => void importConnections() }, icon('folder-open', 15), found.length ? 'Choose another file…' : 'Import connections…')));
+  }
+
   el.replaceChildren(
     h('div', { class: 'welcome-inner' },
       h('div', { class: 'mark' }, h('img', { src: 'icon.svg', alt: '', width: 44, height: 44 }), h('div', {}, h('h1', {}, 'NexTerm'), h('p', { class: 'tag' }, 'SSH, SFTP, Telnet, serial and local terminals in one window'))),
+      onboard,
       h('h3', {}, 'Start'),
       h('div', { class: 'action-list' },
         action('plus', 'New session', 'Create and save a connection', () => void editSession(), `${mod}+Shift+N`),
         action('zap', 'Quick connect', 'Connect to a host without saving it', () => void quickConnect(), `${mod}+Shift+K`),
         action('square-terminal', 'Local terminal', 'Open a shell on this computer', () => openLocal(), `${mod}+Shift+T`),
+        state.sessions.length ? action('download', 'Import connections', 'From MobaXterm, PuTTY or an SSH config', () => void importConnections()) : null,
         action('command', 'Command palette', 'Search sessions and commands', () => openPalette(paletteItems()), `${mod}+Shift+P`),
       ),
       recent.length ? h('h3', {}, 'Recent') : null,
@@ -225,7 +278,7 @@ function renderStatus(): void {
 
   const bar = $('statusbar');
   bar.replaceChildren();
-  put(bar, left, h('span', { class: 'spacer' }), mx, t && h('span', { class: 'item' }, `${t.term.cols} × ${t.term.rows}`), h('span', { class: 'item' }, 'UTF-8'));
+  put(bar, left, h('span', { class: 'spacer' }), mx, t && t.kind !== 'sftp' && h('span', { class: 'item' }, `${t.term.cols} × ${t.term.rows}`), h('span', { class: 'item' }, 'UTF-8'));
 }
 
 /* ------------------------------------------------------------------ bootstrap */
@@ -259,6 +312,7 @@ async function init(): Promise<void> {
     quickConnect: () => void quickConnect(),
     openLocal: () => openLocal(),
     settings: () => void openSettings(),
+    importSessions: () => void importConnections(),
     connect: (s) => openSaved(s),
     edit: (s) => void editSession(s),
     duplicate: (s) => void duplicateSession(s),
@@ -281,6 +335,7 @@ async function init(): Promise<void> {
   state.sessions = await api.listSessions();
   resolveTheme(state.settings.theme);
   onChange();
+  void refreshImportSources(); // detection can take a moment (it queries the registry); do not block the first paint
 }
 
 init().catch((e) => toast('error', `Startup failed: ${cleanError(e)}`));

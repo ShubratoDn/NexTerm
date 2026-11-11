@@ -11,7 +11,9 @@ import { openLocal, openSerial, openSsh, openTelnet } from './connections';
 import type { Conn } from './connections';
 import { assertBaseName, joinRemote, sftpOps, uniqueName } from './sftp';
 import { checkSize, parseSessionInput, parseSettingsPatch } from './validate';
-import type { OpenRequest, OpenResult } from '../shared/types';
+import { REGISTRY, buildPreview, detectSources, loadSource } from './importers';
+import { sessionKey } from './importers/common';
+import type { ImportSourceId, OpenRequest, OpenResult } from '../shared/types';
 
 const INDEX = path.join(__dirname, '..', 'renderer', 'index.html');
 const INDEX_URL = pathToFileURL(INDEX).href;
@@ -23,6 +25,7 @@ interface Live {
 }
 const live = new Map<string, Live>();
 const dropped = new Set<string>();
+const importAllowed = new Set<string>();
 const TITLEBAR_HEIGHT = 40;
 
 let sessions: SessionStore;
@@ -93,7 +96,7 @@ function resolveRequest(req: OpenRequest): { session: ResolvedSession; title: st
   }
   if (typeof req.password === 'string') session.password = req.password;
   const title =
-    session.name || (session.kind === 'ssh' ? `${session.username ?? ''}@${session.host}` : (session.host ?? session.kind));
+    session.name || (session.kind === 'ssh' || session.kind === 'sftp' ? `${session.username ?? ''}@${session.host}` : (session.host ?? session.kind));
   return { session, title };
 }
 
@@ -122,6 +125,9 @@ async function openConnection(e: IpcMainInvokeEvent, req: OpenRequest): Promise<
     case 'ssh':
       conn = await openSsh(session, size, handlers, verifyHostKey);
       break;
+    case 'sftp':
+      conn = await openSsh(session, size, handlers, verifyHostKey, 'sftp');
+      break;
     case 'telnet':
       conn = await openTelnet(session, size, handlers);
       break;
@@ -133,7 +139,7 @@ async function openConnection(e: IpcMainInvokeEvent, req: OpenRequest): Promise<
       break;
   }
   live.set(connId, { conn, owner, closed: false });
-  return { connId, title, sftp: session.kind === 'ssh' };
+  return { connId, title, sftp: session.kind === 'ssh' || session.kind === 'sftp' };
 }
 
 function registerIpc(): void {
@@ -156,6 +162,42 @@ function registerIpc(): void {
     const win = BrowserWindow.fromWebContents(e.sender)!;
     const r = await dialog.showOpenDialog(win, { title: 'Select private key', properties: ['openFile'] });
     return r.canceled ? null : r.filePaths[0];
+  });
+
+  // ---- importing connections from other tools
+  const importSource = (v: unknown): ImportSourceId => {
+    if (v !== 'mobaxterm' && v !== 'putty' && v !== 'openssh') throw new Error('unknown import source');
+    return v;
+  };
+  const allowImport = (p: string) => importAllowed.add(path.resolve(p));
+
+  handle('import:detect', () => detectSources(allowImport));
+  handle('import:pick', async (e, source) => {
+    const id = importSource(source);
+    if (id === 'putty') throw new Error('PuTTY sessions are read from the system');
+    const win = BrowserWindow.fromWebContents(e.sender)!;
+    const filters =
+      id === 'mobaxterm'
+        ? [{ name: 'MobaXterm sessions', extensions: ['ini', 'mxtsessions'] }, { name: 'All files', extensions: ['*'] }]
+        : [{ name: 'All files', extensions: ['*'] }];
+    const r = await dialog.showOpenDialog(win, { title: id === 'mobaxterm' ? 'Select MobaXterm.ini or an exported .mxtsessions file' : 'Select an SSH config file', properties: ['openFile'], filters });
+    if (r.canceled || !r.filePaths[0]) return null;
+    allowImport(r.filePaths[0]);
+    return r.filePaths[0];
+  });
+  handle('import:preview', async (_e, source, p) => {
+    const id = importSource(source);
+    const location = str(p, 'path');
+    // Only locations the app itself found or the user chose in the file dialog may be read.
+    if (id === 'putty' ? location !== REGISTRY : !importAllowed.has(path.resolve(location))) throw new Error('That location was not selected');
+    const result = await loadSource(id, id === 'putty' ? REGISTRY : path.resolve(location));
+    const existing = new Set(sessions.list().map((s) => sessionKey(s)));
+    return buildPreview(id, location, result, existing);
+  });
+  handle('import:commit', (_e, items, skip) => {
+    if (!Array.isArray(items) || items.length === 0 || items.length > 2000) throw new Error('invalid session list');
+    const valid = items.map((i) => parseSessionInput({ ...(i as object), id: undefined, password: undefined }));
+    return sessions.importMany(valid, skip !== false);
   });
 
   handle('conn:open', (e, req) => openConnection(e, req as OpenRequest));
@@ -332,10 +374,11 @@ function createWindow(): void {
 
 /** Early builds were named "termdeck"; carry their saved data over once. */
 function migrateLegacyData(): void {
-  const target = app.getPath('userData');
-  const legacy = path.join(app.getPath('appData'), 'termdeck');
-  if (legacy === target || !fs.existsSync(legacy) || fs.existsSync(path.join(target, 'sessions.json'))) return;
   try {
+    // Everything here is best effort and must never stop the app from starting.
+    const target = app.getPath('userData');
+    const legacy = path.join(app.getPath('appData'), 'termdeck');
+    if (legacy === target || !fs.existsSync(legacy) || fs.existsSync(path.join(target, 'sessions.json'))) return;
     fs.mkdirSync(target, { recursive: true });
     for (const f of ['sessions.json', 'settings.json', 'known_hosts.json']) {
       const src = path.join(legacy, f);

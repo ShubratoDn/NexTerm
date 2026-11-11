@@ -1,4 +1,4 @@
-export type SessionKind = 'ssh' | 'telnet' | 'local' | 'serial';
+export type SessionKind = 'ssh' | 'sftp' | 'telnet' | 'local' | 'serial';
 export type AuthMethod = 'password' | 'key' | 'agent';
 
 /** What the renderer sends when creating/editing a session. */
@@ -83,4 +83,60 @@ export interface SftpEntry {
 export interface SerialPortInfo {
   path: string;
   manufacturer?: string;
+}
+
+/* ------------------------------------------------------------------ importing existing connections */
+
+export type ImportSourceId = 'mobaxterm' | 'putty' | 'openssh';
+
+/** A connection read from another tool. Never carries a secret. */
+export interface ImportedSession {
+  name: string;
+  kind: SessionKind;
+  folder?: string;
+  host?: string;
+  port?: number;
+  username?: string;
+  authMethod?: AuthMethod;
+  keyPath?: string;
+  serialPath?: string;
+  baudRate?: number;
+}
+
+export interface ImportLocation {
+  /** Absolute file path, or the literal "registry" for the Windows registry. */
+  path: string;
+  label: string;
+  count: number;
+}
+
+export interface ImportSourceInfo {
+  id: ImportSourceId;
+  label: string;
+  description: string;
+  found: ImportLocation[];
+  /** Whether the user can pick a file by hand. */
+  canBrowse: boolean;
+}
+
+export interface ImportPreviewItem extends ImportedSession {
+  /** Already saved in NexTerm (same type, host, port and user). */
+  duplicate: boolean;
+  /** The referenced private key file does not exist on this computer. */
+  keyMissing: boolean;
+}
+
+export interface ImportPreview {
+  source: ImportSourceId;
+  path: string;
+  sessions: ImportPreviewItem[];
+  /** Entries that cannot be imported, grouped by reason. */
+  unsupported: { label: string; count: number }[];
+  /** Imported entries that may need attention. */
+  notes: { label: string; count: number }[];
+}
+
+export interface ImportResult {
+  added: number;
+  skipped: number;
 }

@@ -1,6 +1,7 @@
 import type { AuthMethod, SessionInput, SessionKind, Settings } from '../shared/types';
 
-const KINDS: SessionKind[] = ['ssh', 'telnet', 'local', 'serial'];
+const KINDS: SessionKind[] = ['ssh', 'sftp', 'telnet', 'local', 'serial'];
+const isSsh = (k: SessionKind) => k === 'ssh' || k === 'sftp';
 const AUTHS: AuthMethod[] = ['password', 'key', 'agent'];
 
 function str(v: unknown, field: string, max: number, required = false): string | undefined {
@@ -35,12 +36,12 @@ export function parseSessionInput(x: unknown): SessionInput {
     folder: str(o.folder, 'folder', 100),
   };
 
-  if (kind === 'ssh' || kind === 'telnet') {
+  if (isSsh(kind) || kind === 'telnet') {
     out.host = str(o.host, 'host', 255, true)!.trim();
     if (/\s/.test(out.host)) throw new Error('host must not contain spaces');
-    out.port = int(o.port, 'port', 1, 65535) ?? (kind === 'ssh' ? 22 : 23);
+    out.port = int(o.port, 'port', 1, 65535) ?? (kind === 'telnet' ? 23 : 22);
   }
-  if (kind === 'ssh') {
+  if (isSsh(kind)) {
     out.username = str(o.username, 'username', 128);
     const auth = (o.authMethod ?? 'password') as AuthMethod;
     if (!AUTHS.includes(auth)) throw new Error('invalid authentication method');
@@ -48,7 +49,7 @@ export function parseSessionInput(x: unknown): SessionInput {
     out.keyPath = str(o.keyPath, 'keyPath', 1024);
     if (auth === 'key' && !out.keyPath) throw new Error('private key path is required');
   }
-  if (kind === 'ssh') {
+  if (isSsh(kind)) {
     if (o.password === null) out.password = null;
     else out.password = str(o.password, 'password', 1024);
   }

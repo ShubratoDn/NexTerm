@@ -102,9 +102,12 @@ function create(spec: Spec): Tab {
   term.loadAddon(fit);
   term.loadAddon(search);
 
+  const sftpOnly = spec.kind === 'sftp'; // file browser only: the terminal exists but is never shown
   const host = h('div', { class: 'term-host' });
-  const area = h('div', { class: 'term-area' }, h('div', { class: 'term-pad' }, host));
-  const pane = h('div', { class: `pane${state.prefs.filesOpen ? '' : ' no-files'}` });
+  const termArea = h('div', { class: 'term-area' }, h('div', { class: 'term-pad' }, host));
+  const main = h('div', { class: 'pane-main' });
+  const area = sftpOnly ? main : termArea; // overlays and banners cover whatever the user sees
+  const pane = h('div', { class: `pane${state.prefs.filesOpen ? '' : ' no-files'}${sftpOnly ? ' sftp-only' : ''}` });
   const tab: Tab = {
     id: crypto.randomUUID(), title: uniqueTitle(spec.title), subtitle: spec.subtitle, kind: spec.kind, sessionId: spec.sessionId, req: spec.req,
     password: spec.password, needsPassword: spec.needsPassword, rememberPassword: false, state: 'connecting', attempt: 0,
@@ -118,14 +121,19 @@ function create(spec: Spec): Tab {
   const reconnectBtn = h('button', { class: 'icon-btn hidden', title: 'Reconnect', 'aria-label': 'Reconnect', 'data-role': 'reconnect' }, icon('rotate-cw', 16));
   reconnectBtn.addEventListener('click', () => void connect(tab));
 
-  const bar = h('div', { class: 'pane-bar' }, icon(KIND_META[tab.kind].icon, 15), h('span', { class: 'who' }, tab.title), h('span', { class: 'where' }, tab.subtitle), h('span', { class: 'spacer' }), reconnectBtn, tab.kind === 'ssh' ? filesBtn : null, findBtn);
-  const main = h('div', { class: 'pane-main' });
+  const bar = h('div', { class: 'pane-bar' }, icon(KIND_META[tab.kind].icon, 15), h('span', { class: 'who' }, tab.title), h('span', { class: 'where' }, tab.subtitle), h('span', { class: 'spacer' }), reconnectBtn, tab.kind === 'ssh' ? filesBtn : null, sftpOnly ? null : findBtn);
   if (tab.kind === 'ssh') {
     tab.sftp = new SftpPane(() => tab.connId);
-    main.append(tab.sftp.el, resizer(tab.sftp.el));
+    main.append(tab.sftp.el, resizer(tab.sftp.el), termArea);
+  } else if (sftpOnly) {
+    tab.sftp = new SftpPane(() => tab.connId);
+    main.append(tab.sftp.el);
+    pane.append(h('div', { style: 'display:none' }, host));
+  } else {
+    main.append(termArea);
   }
-  main.append(area);
-  pane.append(bar, main);
+  pane.prepend(bar);
+  pane.append(main);
   $('panes').append(pane);
 
   tabs.push(tab);
@@ -141,7 +149,7 @@ function create(spec: Spec): Tab {
 export function openSaved(s: SessionSummary): Tab {
   return create({
     req: { sessionId: s.id }, title: s.name, subtitle: describeSession(s), kind: s.kind, sessionId: s.id,
-    needsPassword: s.kind === 'ssh' && (s.authMethod ?? 'password') === 'password' && !s.hasPassword,
+    needsPassword: (s.kind === 'ssh' || s.kind === 'sftp') && (s.authMethod ?? 'password') === 'password' && !s.hasPassword,
   });
 }
 
@@ -149,7 +157,7 @@ export function openQuick(input: SessionInput): Tab {
   const { password, ...rest } = input;
   return create({
     req: { quick: rest }, title: input.name, subtitle: describeSession({ ...input, port: input.port }), kind: input.kind,
-    needsPassword: input.kind === 'ssh' && (input.authMethod ?? 'password') === 'password' && !password, password: password ?? undefined,
+    needsPassword: (input.kind === 'ssh' || input.kind === 'sftp') && (input.authMethod ?? 'password') === 'password' && !password, password: password ?? undefined,
   });
 }
 
@@ -219,8 +227,8 @@ async function connect(tab: Tab): Promise<void> {
   early.delete(res.connId);
   tab.sftp?.refreshAfterReconnect();
   if (tab.id === activeId) {
-    tab.sftp && state.prefs.filesOpen && tab.sftp.ensureLoaded();
-    tab.term.focus();
+    if (tab.sftp && (tab.kind === 'sftp' || state.prefs.filesOpen)) tab.sftp.ensureLoaded();
+    if (tab.kind !== 'sftp') tab.term.focus();
   }
   if (tab.sessionId) touchRecent(tab.sessionId);
   if (tab.rememberPassword && tab.sessionId && tab.password) void rememberPassword(tab);
@@ -400,7 +408,7 @@ function resizer(target: HTMLElement): HTMLElement {
 /* ------------------------------------------------------------------ find */
 
 export function toggleFind(tab = activeTab(), forceOpen = false): void {
-  if (!tab) return;
+  if (!tab || tab.kind === 'sftp') return;
   if (tab.findbar) {
     if (forceOpen) tab.findbar.querySelector('input')?.focus();
     else closeFind(tab);
@@ -444,9 +452,9 @@ export function activate(id: string): void {
   if (t) {
     requestAnimationFrame(() => {
       refit(t);
-      if (!t.findbar?.contains(document.activeElement)) t.term.focus();
+      if (t.kind !== 'sftp' && !t.findbar?.contains(document.activeElement)) t.term.focus();
     });
-    if (t.sftp && state.prefs.filesOpen && t.state === 'connected') t.sftp.ensureLoaded();
+    if (t.sftp && (t.kind === 'sftp' || state.prefs.filesOpen) && t.state === 'connected') t.sftp.ensureLoaded();
   }
   emitChange();
 }

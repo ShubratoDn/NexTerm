@@ -1,4 +1,4 @@
-import type { SessionSummary, Settings } from '../shared/types';
+import type { ImportSourceInfo, SessionSummary, Settings } from '../shared/types';
 import { DEFAULT_SETTINGS } from '../shared/types';
 
 /** Layout preferences that only matter to this window; kept in localStorage. */
@@ -37,6 +37,8 @@ export const state = {
   settings: { ...DEFAULT_SETTINGS } as Settings,
   sessions: [] as SessionSummary[],
   prefs: loadPrefs(),
+  /** Connection lists found on this computer (MobaXterm, PuTTY, OpenSSH). */
+  importSources: [] as ImportSourceInfo[],
 };
 
 export function savePrefs(): void {
@@ -70,6 +72,7 @@ export const emitChange = (): void => listeners.forEach((f) => f());
 export function describeSession(s: Pick<SessionSummary, 'kind' | 'host' | 'port' | 'username' | 'serialPath' | 'baudRate' | 'shell'>): string {
   switch (s.kind) {
     case 'ssh':
+    case 'sftp':
       return `${s.username ? s.username + '@' : ''}${s.host}${s.port && s.port !== 22 ? ':' + s.port : ''}`;
     case 'telnet':
       return `${s.host}${s.port && s.port !== 23 ? ':' + s.port : ''}`;

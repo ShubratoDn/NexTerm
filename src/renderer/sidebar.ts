@@ -11,6 +11,7 @@ export interface SidebarActions {
   quickConnect(): void;
   openLocal(): void;
   settings(): void;
+  importSessions(): void;
   connect(s: SessionSummary): void;
   edit(s: SessionSummary): void;
   duplicate(s: SessionSummary): void;
@@ -48,6 +49,7 @@ export function initSidebar(a: SidebarActions): void {
     h('div', { class: 'side-foot' },
       h('button', { class: 'icon-btn', title: 'Settings', 'aria-label': 'Settings', onclick: () => actions.settings() }, icon('settings', 16)),
       h('button', { class: 'icon-btn', title: 'New local terminal (Ctrl+Shift+T)', 'aria-label': 'New local terminal', onclick: () => actions.openLocal() }, icon('square-terminal', 16)),
+      h('button', { class: 'icon-btn', title: 'Import connections from MobaXterm, PuTTY or SSH config', 'aria-label': 'Import connections', onclick: () => actions.importSessions() }, icon('download', 16)),
       h('span', { class: 'spacer' })),
   );
 
@@ -100,7 +102,7 @@ export function renderSidebar(): void {
   const keepFocus = list.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.id : undefined;
 
   if (state.sessions.length === 0) {
-    list.replaceChildren(h('div', { class: 'empty-note' }, icon('server', 28), h('div', {}, 'No saved sessions yet.'), h('div', {}, 'Create one, or use Quick connect for a one-off host.')));
+    list.replaceChildren(h('div', { class: 'empty-note' }, icon('server', 28), h('div', {}, 'No saved sessions yet.'), h('div', {}, 'Create one, or bring your existing connections with you.'), h('button', { class: 'btn', style: 'margin-top:12px', onclick: () => actions.importSessions() }, icon('download', 15), 'Import connections')));
     return;
   }
   if (all.length === 0) {

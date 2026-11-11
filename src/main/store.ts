@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { DEFAULT_SETTINGS } from '../shared/types';
+import { sessionKey } from './importers/common';
 import type { SessionInput, SessionSummary, Settings } from '../shared/types';
 
 export class JsonFile<T> {
@@ -82,6 +83,30 @@ export class SessionStore {
     all.push(copy);
     this.file.write(all);
     return this.summary(copy);
+  }
+
+  /**
+   * Adds many sessions at once (used by import). Inputs must already be validated.
+   * With `skipDuplicates`, a session that reaches the same endpoint as the same user as an existing one is skipped.
+   */
+  importMany(items: SessionInput[], skipDuplicates: boolean): { added: number; skipped: number } {
+    const all = this.file.read();
+    const seen = new Set(all.map((s) => sessionKey(s)));
+    let added = 0;
+    let skipped = 0;
+    for (const item of items) {
+      const key = sessionKey(item);
+      if (skipDuplicates && seen.has(key)) {
+        skipped++;
+        continue;
+      }
+      const { password: _ignored, id: _id, ...rest } = item;
+      all.push({ ...rest, id: randomUUID() });
+      seen.add(key);
+      added++;
+    }
+    if (added > 0) this.file.write(all);
+    return { added, skipped };
   }
 
   delete(id: string): void {
