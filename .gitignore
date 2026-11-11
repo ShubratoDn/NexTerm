@@ -1,4 +1,4 @@
-﻿# Dependencies and build output
+# Dependencies and build output
 node_modules/
 dist/
 release/

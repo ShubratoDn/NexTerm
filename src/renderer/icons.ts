@@ -1,4 +1,4 @@
-﻿// Icons from Lucide (https://lucide.dev, ISC license), bundled as inline SVG text.
+// Icons from Lucide (https://lucide.dev, ISC license), bundled as inline SVG text.
 import Terminal from 'lucide-static/icons/terminal.svg';
 import SquareTerminal from 'lucide-static/icons/square-terminal.svg';
 import Server from 'lucide-static/icons/server.svg';

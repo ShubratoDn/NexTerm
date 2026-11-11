@@ -1,4 +1,4 @@
-﻿import { build } from 'esbuild';
+import { build } from 'esbuild';
 import { cpSync, mkdirSync } from 'node:fs';
 
 const out = 'dist/renderer';
