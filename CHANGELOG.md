@@ -4,6 +4,10 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Changed
+- Faster release pipeline: single build, no duplicate Electron download, faster zip step
+- Smaller package: unused Chromium translation files are no longer shipped (about 48 MB)
+
 ## [0.1.0] - 2026-11-11
 
 First public version.

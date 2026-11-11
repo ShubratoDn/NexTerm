@@ -8,10 +8,18 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   windows:
     name: Package (Windows)
     runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      # `npm run package` downloads Electron itself; the copy `npm ci` would fetch is never used.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -21,24 +29,27 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Download the Electron binary
-        run: node node_modules/electron/install.js
+      # Compile once, then reuse the output for the tests and the package.
+      - name: Build
+        run: npm run build
 
       - name: Test
-        run: npm test
+        run: node --test dist/test/
 
       - name: Package
-        run: npm run package
+        run: node scripts/package.mjs
 
+      # The .NET zip writer at its fastest level is ~6x quicker than Compress-Archive on this package
+      # (17 s vs 104 s measured) for a few MB more to upload.
       - name: Create archive
         shell: pwsh
         run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
           $dir = Get-ChildItem release -Directory | Select-Object -First 1
-          Compress-Archive -Path $dir.FullName -DestinationPath "NexTerm-${{ github.ref_name }}-win-x64.zip"
+          $zip = Join-Path $PWD "NexTerm-${{ github.ref_name }}-win-x64.zip"
+          [IO.Compression.ZipFile]::CreateFromDirectory($dir.FullName, $zip, [IO.Compression.CompressionLevel]::Fastest, $true)
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
