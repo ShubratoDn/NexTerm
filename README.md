@@ -43,6 +43,11 @@ Working across servers, network gear and your own machine usually means a termin
 - Upload (including drag and drop), download, rename, create folder, delete
 - Host key verification: confirm unknown hosts, hard refusal when a known host's key changes
 
+**Server status bar**
+- Live **CPU** (with a history graph), **memory**, **upload / download speed**, **uptime**, **logged-in users** and **disk usage** per mount, right under every SSH terminal, with colour warnings at 75% and 90%
+- Click it for a details panel: load average, CPU model and cores, swap, per-interface traffic, a disk table and the **busiest processes**
+- Read-only and agentless: a short script reads `/proc` over a separate SSH channel; nothing is installed on the server and your shell session is never touched
+
 **Terminal**
 - [xterm.js](https://xtermjs.org/) terminal with 256-colour and truecolour support, scrollback and in-terminal search
 - **MultiExec**: type once, send to every connected tab (clearly flagged on the tab and in the status bar)
@@ -71,6 +76,14 @@ Working across servers, network gear and your own machine usually means a termin
   <tr>
     <td align="center"><sub>Command palette</sub></td>
     <td align="center"><sub>Session editor with inline validation</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshots/server-status.png" alt="Server status bar and details panel, dark theme"></td>
+    <td width="50%"><img src="docs/assets/screenshots/server-status-light.png" alt="Server status details panel, light theme"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Live server status bar with the details panel</sub></td>
+    <td align="center"><sub>The same in the light theme</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/assets/screenshots/onboarding.png" alt="First-run screen offering to import connections"></td>
@@ -176,6 +189,23 @@ For each session NexTerm reads the name, host, port, user name, the *path* of th
 - Sessions that use a jump host in an SSH config are imported without the jump host; the preview warns you.
 - The SSH, SFTP, key-file and folder handling was checked against a real `MobaXterm.ini` and the PuTTY registry. The Telnet and serial mappings follow the file format but were only tested with sample data.
 
+## Server status bar
+
+After you connect to a server over SSH, a bar under the terminal shows how it is doing:
+
+`host · CPU % + graph · memory used / total · ↑ upload · ↓ download · uptime · logged-in users · disk usage per mount · Details`
+
+- **How it works.** Every few seconds NexTerm sends a short, read-only shell script to `sh -s` on a separate SSH channel. It reads `/proc` and runs `hostname`, `uname`, `who`, `df` (and `ps` while the details panel is open). CPU and network speed are calculated from the difference between two samples. Nothing is installed on the server and nothing is written to it.
+- **Light on the server.** Only the tab you are looking at is sampled, every 3 seconds by default (change it in Settings, or turn the bar off there or from the command palette).
+- **Linux servers** get the full bar. Other Unix-like systems may show a partial bar. If a server refuses the command (restricted accounts, SFTP-only chroots) the bar says so and offers *Try again*.
+- **Not available for Windows servers** (see below), Telnet, serial and local sessions.
+
+## Connecting to Windows servers
+
+- **SSH and SFTP: yes, if the server runs OpenSSH.** Windows 10, 11 and Windows Server 2019 and newer include an OpenSSH server (Settings → Optional features → *OpenSSH Server*, then start the `sshd` service). NexTerm connects to it like any SSH host and opens the account's default shell (`cmd.exe` unless the administrator set PowerShell as the default). The file browser uses the server's SFTP subsystem. This has not been tested against a real Windows server yet.
+- **Server status bar: not for Windows.** It reads Linux `/proc`, so a Windows server shows "not available". A Windows version (using PowerShell) is a possible future addition.
+- **Remote Desktop (RDP): not supported.** NexTerm is a terminal and file-transfer client. RDP sessions found when importing from MobaXterm are skipped and listed as not imported.
+
 ## Where your data lives
 
 Your data lives in the app's data folder (`%APPDATA%\NexTerm` on Windows): `sessions.json`, `settings.json` and `known_hosts.json`.
@@ -224,6 +254,8 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 - [x] SFTP-only sessions (no shell), for servers that disallow one
 - [x] Import from MobaXterm, PuTTY and OpenSSH config
+- [x] Live server status bar for Linux servers
+- [ ] Server status for Windows servers (PowerShell based)
 - [ ] SSH port forwarding and tunnels
 - [ ] Split panes
 - [ ] Recursive folder upload and download

@@ -5,6 +5,7 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 ## [Unreleased]
 
 ### Added
+- **Server status bar** under SSH terminals: host, CPU with a history graph, memory, upload and download speed, uptime, logged-in users and disk usage per mount, with a details panel (load, swap, network interfaces, disks, busiest processes). Agentless and read-only; only the visible tab is sampled; configurable or off in Settings and the command palette
 - Linux packaging: `npm run package:linux` builds a `.tar.gz` on any OS and AppImage, `.deb` and `.rpm` on Linux (or WSL)
 - 512 px application icon generated from the same source logo
 

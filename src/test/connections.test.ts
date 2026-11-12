@@ -33,6 +33,18 @@ function startSshServer(): Promise<{ port: number; close: () => void }> {
           stream.write('welcome\r\n');
           stream.on('data', (d: Buffer) => stream.write(`echo:${d.toString()}`));
         });
+        session.on('exec', (acc, rej, info) => {
+          if (info.command === 'refuse') return rej();
+          const stream = acc();
+          let input = '';
+          stream.on('data', (d: Buffer) => (input += d.toString()));
+          if (info.command === 'hang') return; // never answers
+          stream.on('end', () => {
+            stream.write(`ran:${info.command}|stdin:${input}`);
+            stream.exit(0);
+            stream.end();
+          });
+        });
         session.on('sftp', (acc) => {
           const sftp = acc();
           let sent = false;
@@ -115,6 +127,58 @@ test('ssh: password login, shell I/O, host key callback, sftp listing', async ()
     assert.equal(list[0].isDir, true);
     assert.equal(list[2].size, 12);
     assert.equal(list[1].mode, 0o600);
+  } finally {
+    conn?.close();
+    srv.close();
+  }
+});
+
+test('ssh: exec runs a command on a separate channel, with stdin, without disturbing the shell', async () => {
+  const srv = await startSshServer();
+  const out = collect();
+  let conn: Conn | undefined;
+  try {
+    conn = await openSsh(session(srv.port), { cols: 80, rows: 24 }, out.h, async () => true);
+    await until(() => out.text().includes('welcome'));
+    assert.ok(conn.exec, 'ssh shell connections can run commands');
+    const reply = await conn.exec!('sh -s', 'echo hello\n', 3000);
+    assert.equal(reply, 'ran:sh -s|stdin:echo hello\n');
+    // two overlapping commands each get their own channel
+    const [a, b] = await Promise.all([conn.exec!('sh -s', 'A', 3000), conn.exec!('sh -s', 'B', 3000)]);
+    assert.equal(a, 'ran:sh -s|stdin:A');
+    assert.equal(b, 'ran:sh -s|stdin:B');
+    // the interactive shell is untouched: no stray output, still echoing
+    assert.ok(!out.text().includes('ran:'));
+    conn.write('ping');
+    await until(() => out.text().includes('echo:ping'));
+    assert.equal(out.closed(), false);
+  } finally {
+    conn?.close();
+    srv.close();
+  }
+});
+
+test('ssh: exec reports refusal and times out on a command that never answers', async () => {
+  const srv = await startSshServer();
+  let conn: Conn | undefined;
+  try {
+    conn = await openSsh(session(srv.port), { cols: 80, rows: 24 }, collect().h, async () => true);
+    await assert.rejects(conn.exec!('refuse', '', 2000));
+    const started = Date.now();
+    await assert.rejects(conn.exec!('hang', '', 300), /did not answer in time/);
+    assert.ok(Date.now() - started < 2000, 'the timeout fires promptly');
+  } finally {
+    conn?.close();
+    srv.close();
+  }
+});
+
+test('ssh: sftp-only connections do not offer exec', async () => {
+  const srv = await startSshServer();
+  let conn: Conn | undefined;
+  try {
+    conn = await openSsh(session(srv.port, { kind: 'sftp' }), { cols: 80, rows: 24 }, collect().h, async () => true, 'sftp');
+    assert.equal(conn.exec, undefined);
   } finally {
     conn?.close();
     srv.close();

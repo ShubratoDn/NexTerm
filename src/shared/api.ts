@@ -5,6 +5,7 @@ import type {
   ImportSourceInfo,
   ImportedSession,
   OpenRequest,
+  ServerStats,
   OpenResult,
   SerialPortInfo,
   SessionInput,
@@ -41,6 +42,15 @@ export interface TermApi {
   close(connId: string): void;
   onData(cb: (connId: string, data: Uint8Array) => void): () => void;
   onClosed(cb: (connId: string, reason?: string) => void): () => void;
+
+  /** Live server statistics for an SSH connection. */
+  monitorStart(connId: string): Promise<void>;
+  monitorStop(connId: string): Promise<void>;
+  /** While on, samples also include the busiest processes (used by the details panel). */
+  monitorDetail(connId: string, on: boolean): Promise<void>;
+  /** Takes a sample immediately instead of waiting for the next tick. */
+  monitorRefresh(connId: string): Promise<void>;
+  onMonitor(cb: (connId: string, stats: ServerStats | null) => void): () => void;
 
   sftp: {
     realpath(connId: string, path: string): Promise<string>;

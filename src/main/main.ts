@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, webContents } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,6 +11,7 @@ import { openLocal, openSerial, openSsh, openTelnet } from './connections';
 import type { Conn } from './connections';
 import { assertBaseName, joinRemote, sftpOps, uniqueName } from './sftp';
 import { checkSize, parseSessionInput, parseSettingsPatch } from './validate';
+import { MonitorHub } from './monitor';
 import { REGISTRY, buildPreview, detectSources, loadSource } from './importers';
 import { sessionKey } from './importers/common';
 import type { ImportSourceId, OpenRequest, OpenResult } from '../shared/types';
@@ -28,6 +29,7 @@ const dropped = new Set<string>();
 const importAllowed = new Set<string>();
 const TITLEBAR_HEIGHT = 40;
 
+let hub: MonitorHub;
 let sessions: SessionStore;
 let settings: SettingsStore;
 let knownHosts: KnownHosts;
@@ -115,6 +117,7 @@ async function openConnection(e: IpcMainInvokeEvent, req: OpenRequest): Promise<
       const l = live.get(connId);
       if (!l || l.closed) return;
       l.closed = true;
+      hub?.stop(connId);
       live.delete(connId);
       if (!sender.isDestroyed()) sender.send('conn:closed', connId, reason);
     },
@@ -224,10 +227,29 @@ function registerIpc(): void {
   ipcMain.on('conn:close', (e, connId) => {
     try {
       trusted(e);
+      hub?.stop(String(connId));
       getLive(connId, e.sender.id).conn.close();
     } catch {
       /* ignore */
     }
+  });
+
+  // ---- live server statistics (SSH shell sessions only)
+  handle('monitor:start', (e, id) => {
+    const l = getLive(id, e.sender.id);
+    if (!l.conn.exec) return;
+    hub.start(String(id), l.conn);
+  });
+  handle('monitor:stop', (e, id) => {
+    getLive(id, e.sender.id);
+    hub.stop(String(id));
+  });
+  handle('monitor:detail', (e, id, on) => {
+    getLive(id, e.sender.id);
+    hub.setDetail(String(id), on === true);
+  });
+  handle('monitor:refresh', (e, id) => {
+    hub.refresh(String(id), getLive(id, e.sender.id).conn);
   });
 
   ipcMain.on('drop:register', (e, p) => {
@@ -394,6 +416,14 @@ app.whenReady().then(() => {
   sessions = new SessionStore();
   settings = new SettingsStore();
   knownHosts = new KnownHosts();
+  hub = new MonitorHub(
+    () => settings.get().monitorInterval * 1000,
+    (connId, stats) => {
+      const l = live.get(connId);
+      const wc = l ? webContents.fromId(l.owner) : undefined;
+      if (wc && !wc.isDestroyed()) wc.send('monitor:stats', connId, stats);
+    },
+  );
   Menu.setApplicationMenu(null);
   registerIpc();
   createWindow();
@@ -403,6 +433,7 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  hub?.stopAll();
   for (const l of live.values()) {
     try {
       l.conn.close();

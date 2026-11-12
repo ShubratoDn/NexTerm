@@ -71,6 +71,16 @@ stateDiagram-v2
 
 A tab is created immediately in `connecting`, so the terminal has a real size before the connection opens. A failed connection keeps its tab with *Retry* and *Edit session*; a dropped one shows a *Reconnect* banner over the preserved scrollback.
 
+## Server status
+
+`src/main/monitor.ts` is pure code with no Electron dependency:
+
+- `statsScript()` returns a fixed, read-only POSIX shell script (only `/proc`, `hostname`, `uname`, `who`, `df`, and `ps` while the details panel is open). It is **never built from user input** and is sent on stdin to `sh -s` over a new `exec` channel, so it behaves the same under any login shell and never touches the interactive session.
+- `Monitor` parses the sections the script prints and turns two successive samples into rates (CPU share from `/proc/stat` jiffies, network bytes per second from `/proc/net/dev`). It tolerates missing `/proc`, garbage and counter resets.
+- `MonitorHub` polls: one sample immediately and a second one a second later (so rates appear fast), then the configured interval. Samples never overlap, an 8-second timeout guards each run, and three failures in a row stop polling and report `null`, which the bar shows as "not available".
+
+The renderer starts polling only for the tab on screen and stops it when the tab is hidden, disconnected or the setting is turned off. The IPC handlers check that the connection belongs to the calling window and that only SSH shell connections (which offer `exec`) can be monitored.
+
 ## SFTP
 
 The file browser is a renderer component (`src/renderer/sftp-pane.ts`) backed by main-process operations (`src/main/sftp.ts`). It reuses the SSH connection of its tab, so it needs no second login.
@@ -89,6 +99,8 @@ The file browser is a renderer component (`src/renderer/sftp-pane.ts`) backed by
 | `conn:data`, `conn:closed` | main → renderer | Output and lifecycle |
 | `sftp:*` | invoke | List, transfer, rename, create, delete |
 | `import:detect`, `import:pick`, `import:preview`, `import:commit` | invoke | Find, preview and import connections from other tools |
+| `monitor:start`, `monitor:stop`, `monitor:detail`, `monitor:refresh` | invoke | Control live server statistics for one SSH connection |
+| `monitor:stats` | main → renderer | One parsed sample (or `null` when the server cannot provide it) |
 | `drop:register` | send | Registers a file the user dropped on the window |
 | `ui:titlebar` | send | Syncs the native caption-button colours with the theme |
 

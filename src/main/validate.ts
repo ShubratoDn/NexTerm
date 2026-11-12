@@ -78,6 +78,11 @@ export function parseSettingsPatch(x: unknown): Partial<Settings> {
     }
     out.cursorStyle = o.cursorStyle;
   }
+  if (o.monitor !== undefined) {
+    if (typeof o.monitor !== 'boolean') throw new Error('invalid monitor setting');
+    out.monitor = o.monitor;
+  }
+  if (o.monitorInterval !== undefined) out.monitorInterval = int(o.monitorInterval, 'monitorInterval', 1, 60);
   if (o.cursorBlink !== undefined) {
     if (typeof o.cursorBlink !== 'boolean') throw new Error('invalid cursorBlink');
     out.cursorBlink = o.cursorBlink;

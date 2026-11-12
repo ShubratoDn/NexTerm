@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { TermApi } from '../shared/api';
+import type { ServerStats } from '../shared/types';
 
 const api: TermApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
@@ -35,6 +36,16 @@ const api: TermApi = {
     const l = (_e: unknown, id: string, reason?: string) => cb(id, reason);
     ipcRenderer.on('conn:closed', l);
     return () => void ipcRenderer.removeListener('conn:closed', l);
+  },
+
+  monitorStart: (id) => ipcRenderer.invoke('monitor:start', id),
+  monitorStop: (id) => ipcRenderer.invoke('monitor:stop', id),
+  monitorDetail: (id, on) => ipcRenderer.invoke('monitor:detail', id, on),
+  monitorRefresh: (id) => ipcRenderer.invoke('monitor:refresh', id),
+  onMonitor: (cb) => {
+    const l = (_e: unknown, id: string, s: ServerStats | null) => cb(id, s);
+    ipcRenderer.on('monitor:stats', l);
+    return () => void ipcRenderer.removeListener('monitor:stats', l);
   },
 
   sftp: {

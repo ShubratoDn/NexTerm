@@ -13,6 +13,8 @@ export interface Conn {
   resize(cols: number, rows: number): void;
   close(): void;
   sftp?(): Promise<SFTPWrapper>;
+  /** Runs a command on a separate channel, feeding input on stdin, and resolves with its stdout (SSH only). */
+  exec?(command: string, input: string, timeoutMs: number): Promise<string>;
 }
 
 export interface Handlers {
@@ -95,6 +97,34 @@ export function openSsh(s: ResolvedSession, size: Size, h: Handlers, verify: Hos
       finish(prompts.map(() => s.password ?? ''));
     });
 
+    const execCommand = (command: string, input: string, timeoutMs: number): Promise<string> =>
+      new Promise<string>((res, rej) => {
+        client.exec(command, (err, stream) => {
+          if (err) return rej(err);
+          let out = '';
+          let done = false;
+          const finish = (fn: () => void) => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            fn();
+          };
+          const timer = setTimeout(() => {
+            finish(() => {
+              stream.close();
+              rej(new Error('The server did not answer in time'));
+            });
+          }, timeoutMs);
+          stream.on('data', (d: Buffer) => {
+            if (out.length < 1_000_000) out += d.toString('utf8');
+          });
+          stream.stderr.on('data', () => undefined); // drain so the channel can close
+          stream.on('close', () => finish(() => res(out)));
+          stream.on('error', (e: Error) => finish(() => rej(e)));
+          stream.end(input);
+        });
+      });
+
     const getSftp = () =>
       (sftpP ??= new Promise<SFTPWrapper>((res, rej) =>
         client.sftp((e, sftp) => {
@@ -138,6 +168,7 @@ export function openSsh(s: ResolvedSession, size: Size, h: Handlers, verify: Hos
           resize: (c, r) => void stream.setWindow(r, c, 0, 0),
           close: () => client.end(),
           sftp: getSftp,
+          exec: execCommand,
         });
       });
     });

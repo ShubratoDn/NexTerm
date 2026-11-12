@@ -56,6 +56,14 @@ import ChevronUp from 'lucide-static/icons/chevron-up.svg';
 import ArrowDownUp from 'lucide-static/icons/arrow-down-up.svg';
 import SearchX from 'lucide-static/icons/search-x.svg';
 import CopyPlus from 'lucide-static/icons/copy-plus.svg';
+import Cpu from 'lucide-static/icons/cpu.svg';
+import MemoryStick from 'lucide-static/icons/memory-stick.svg';
+import Clock from 'lucide-static/icons/clock.svg';
+import Users from 'lucide-static/icons/users.svg';
+import Activity from 'lucide-static/icons/activity.svg';
+import ArrowDown from 'lucide-static/icons/arrow-down.svg';
+import Network from 'lucide-static/icons/network.svg';
+import Gauge from 'lucide-static/icons/gauge.svg';
 
 const RAW = {
   'terminal': Terminal,
@@ -115,6 +123,14 @@ const RAW = {
   'arrow-down-up': ArrowDownUp,
   'search-x': SearchX,
   'copy-plus': CopyPlus,
+  'cpu': Cpu,
+  'memory-stick': MemoryStick,
+  'clock': Clock,
+  'users': Users,
+  'activity': Activity,
+  'arrow-down': ArrowDown,
+  'network': Network,
+  'gauge': Gauge,
 } as const;
 
 export type IconName = keyof typeof RAW;

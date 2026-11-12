@@ -52,6 +52,14 @@ test('settings patch validation', () => {
   assert.throws(() => parseSettingsPatch('x'));
 });
 
+test('server status settings are validated', () => {
+  assert.deepEqual(parseSettingsPatch({ monitor: false, monitorInterval: 5 }), { monitor: false, monitorInterval: 5 });
+  assert.throws(() => parseSettingsPatch({ monitor: 'yes' }));
+  assert.throws(() => parseSettingsPatch({ monitorInterval: 0 }));
+  assert.throws(() => parseSettingsPatch({ monitorInterval: 3600 }));
+  assert.throws(() => parseSettingsPatch({ monitorInterval: 2.5 }));
+});
+
 test('terminal size bounds', () => {
   assert.deepEqual(checkSize(80, 24), { cols: 80, rows: 24 });
   assert.throws(() => checkSize(0, 24));

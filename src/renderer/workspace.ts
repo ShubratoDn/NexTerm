@@ -6,6 +6,7 @@ import { icon } from './icons';
 import { KIND_META, askConfirm, askSecret } from './dialogs';
 import { showMenu } from './menu';
 import { SftpPane } from './sftp-pane';
+import { MonitorBar } from './monitor-bar';
 import { cleanError, toast } from './toast';
 import { applyTheme, fontStack, resolveTheme, termTheme } from './theme';
 import { describeSession, emitChange, savePrefs, state, touchRecent } from './state';
@@ -37,6 +38,9 @@ export interface Tab {
   banner?: HTMLElement;
   findbar?: HTMLElement;
   sftp?: SftpPane;
+  /** Live server statistics (SSH shell sessions only). */
+  monitor?: MonitorBar;
+  monitoring: boolean;
   tabEl?: HTMLElement;
   observer: ResizeObserver;
 }
@@ -110,7 +114,7 @@ function create(spec: Spec): Tab {
   const pane = h('div', { class: `pane${state.prefs.filesOpen ? '' : ' no-files'}${sftpOnly ? ' sftp-only' : ''}` });
   const tab: Tab = {
     id: crypto.randomUUID(), title: uniqueTitle(spec.title), subtitle: spec.subtitle, kind: spec.kind, sessionId: spec.sessionId, req: spec.req,
-    password: spec.password, needsPassword: spec.needsPassword, rememberPassword: false, state: 'connecting', attempt: 0,
+    password: spec.password, needsPassword: spec.needsPassword, rememberPassword: false, state: 'connecting', attempt: 0, monitoring: false,
     term, fit, search, pane, area, observer: new ResizeObserver(() => refitSoon(tab)),
   };
 
@@ -134,6 +138,10 @@ function create(spec: Spec): Tab {
   }
   pane.prepend(bar);
   pane.append(main);
+  if (tab.kind === 'ssh') {
+    tab.monitor = new MonitorBar(() => tab.connId, () => { tab.monitoring = false; tab.monitor?.setMode('loading'); syncMonitor(tab); });
+    pane.append(tab.monitor.el);
+  }
   $('panes').append(pane);
 
   tabs.push(tab);
@@ -260,6 +268,7 @@ function setState(tab: Tab, s: TabState): void {
   renderOverlay(tab);
   renderBanner(tab);
   tab.pane.classList.toggle('pending', s === 'connecting' || s === 'failed'); // no empty file browser before connecting
+  syncMonitor(tab);
   const reconnect = tab.pane.querySelector('[data-role=reconnect]');
   reconnect?.classList.toggle('hidden', s !== 'closed');
   renderTabs();
@@ -447,6 +456,7 @@ function closeFind(tab: Tab): void {
 export function activate(id: string): void {
   activeId = id;
   for (const t of tabs) t.pane.classList.toggle('active', t.id === id);
+  for (const t of tabs) syncMonitor(t); // only the visible tab is polled
   renderTabs();
   const t = activeTab();
   if (t) {
@@ -476,6 +486,7 @@ export async function closeTab(id: string, force = false): Promise<void> {
     early.delete(tab.connId);
   }
   tab.observer.disconnect();
+  tab.monitor?.destroy();
   tab.term.dispose();
   tab.pane.remove();
   const i = tabs.indexOf(tab);
@@ -562,10 +573,45 @@ export function applySettingsToTerminals(): void {
     t.term.options.cursorStyle = o.cursorStyle;
     t.term.options.theme = termTheme(r);
     refitSoon(t);
+    syncMonitor(t); // the server status setting may have changed
+  }
+}
+
+/**
+ * Starts or stops live server statistics for a tab. Statistics are only polled for the tab that is on screen,
+ * so many open sessions do not add load on their servers.
+ */
+export function syncMonitor(t: Tab): void {
+  const bar = t.monitor;
+  if (!bar) return;
+  const connected = t.state === 'connected' && !!t.connId;
+  if (!state.settings.monitor || !connected) {
+    if (t.monitoring && t.connId) void window.termApi.monitorStop(t.connId).catch(() => undefined);
+    t.monitoring = false;
+    bar.setMode('hidden');
+    return;
+  }
+  if (!bar.visible) bar.setMode('loading');
+  const onScreen = t.id === activeId;
+  if (onScreen && !t.monitoring) {
+    t.monitoring = true;
+    void window.termApi.monitorStart(t.connId!).catch(() => {
+      t.monitoring = false;
+      bar.update(null);
+    });
+  } else if (!onScreen && t.monitoring) {
+    t.monitoring = false;
+    void window.termApi.monitorStop(t.connId!).catch(() => undefined);
   }
 }
 
 export function initWorkspaceEvents(): void {
+  window.termApi.onMonitor((id, stats) => {
+    const t = byConn.get(id);
+    if (!t?.monitor) return;
+    if (stats === null) t.monitoring = false; // the server cannot provide it; the bar offers "Try again"
+    t.monitor.update(stats);
+  });
   window.termApi.onData((id, data) => {
     const t = byConn.get(id);
     if (t) t.term.write(data);

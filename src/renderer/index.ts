@@ -167,6 +167,12 @@ function paletteItems(): PaletteItem[] {
     if (t.kind === 'ssh') act('Toggle file browser', 'files', toggleFiles, `${mod}+Shift+E`);
   }
   act(isMultiExec() ? 'Turn MultiExec off' : 'Turn MultiExec on', 'radio', () => setMultiExec(!isMultiExec()), undefined, 'Type in all connected tabs at once');
+  act(state.settings.monitor ? 'Hide server status bar' : 'Show server status bar', 'gauge', () => {
+    void api.setSettings({ monitor: !state.settings.monitor }).then((s) => {
+      state.settings = s;
+      applySettingsToTerminals();
+    }).catch((e) => toast('error', cleanError(e)));
+  }, undefined, 'Live CPU, memory, network and disk usage under SSH terminals');
   act('Toggle sidebar', 'panel-left-close', () => setSidebarOpen(!state.prefs.sidebarOpen), `${mod}+Shift+B`);
   act('Zoom in', 'plus', () => zoom(1), `${mod}+=`);
   act('Zoom out', 'plus', () => zoom(-1), `${mod}+-`);

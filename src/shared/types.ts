@@ -44,6 +44,10 @@ export interface Settings {
   scrollback: number;
   cursorBlink: boolean;
   cursorStyle: 'block' | 'bar' | 'underline';
+  /** Show live server statistics under SSH terminals. */
+  monitor: boolean;
+  /** Seconds between server statistics samples. */
+  monitorInterval: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -53,6 +57,8 @@ export const DEFAULT_SETTINGS: Settings = {
   scrollback: 10000,
   cursorBlink: true,
   cursorStyle: 'bar',
+  monitor: true,
+  monitorInterval: 3,
 };
 
 export interface OpenRequest {
@@ -139,4 +145,54 @@ export interface ImportPreview {
 export interface ImportResult {
   added: number;
   skipped: number;
+}
+/* ------------------------------------------------------------------ live server statistics */
+
+export interface DiskStat {
+  mount: string;
+  device: string;
+  totalKb: number;
+  usedKb: number;
+  percent: number;
+}
+
+export interface NetInterfaceStat {
+  name: string;
+  /** Bytes per second since the previous sample (null on the first sample). */
+  rxBps: number | null;
+  txBps: number | null;
+  rxTotal: number;
+  txTotal: number;
+}
+
+export interface ProcessStat {
+  pid: number;
+  user: string;
+  cpu: number;
+  mem: number;
+  command: string;
+}
+
+/** One sample of a server's health, read over a separate SSH channel (never through the user's shell). */
+export interface ServerStats {
+  at: number;
+  host: string;
+  os?: string;
+  kernel?: string;
+  arch?: string;
+  cpuModel?: string;
+  cores?: number;
+  /** Overall CPU use, 0 to 100 (null until two samples exist). */
+  cpuPercent: number | null;
+  load: [number, number, number] | null;
+  mem: { totalKb: number; usedKb: number; availKb: number; cachedKb: number; swapTotalKb: number; swapUsedKb: number } | null;
+  /** Totals over all real network interfaces, bytes per second (null on the first sample). */
+  netRxBps: number | null;
+  netTxBps: number | null;
+  interfaces: NetInterfaceStat[];
+  uptimeSec: number | null;
+  users: { name: string; count: number }[];
+  disks: DiskStat[];
+  /** Only present while the details panel is open. */
+  processes?: ProcessStat[];
 }

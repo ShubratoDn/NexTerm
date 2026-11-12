@@ -398,6 +398,11 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
     const scroll = h('input', { class: 'input', type: 'number', min: '0', max: '100000', step: '1000', value: String(s.scrollback) });
     scroll.addEventListener('change', () => { const n = Math.min(100000, Math.max(0, Math.round(Number(scroll.value) || 0))); scroll.value = String(n); void set({ scrollback: n }); });
 
+    const monitorOn = toggle(s.monitor, (v) => void set({ monitor: v }), 'Server status bar');
+    const INTERVALS = [2, 3, 5, 10, 30];
+    const every = h('select', { class: 'input', 'aria-label': 'Refresh interval' }, ...INTERVALS.map((n) => h('option', { value: String(n), selected: n === s.monitorInterval }, `Every ${n} seconds`)));
+    every.addEventListener('change', () => void set({ monitorInterval: Number(every.value) }));
+
     const preview = h('div', { class: 'preview' });
     const updatePreview = () => {
       preview.style.fontFamily = `"${s.fontFamily}", "JetBrains Mono", monospace`;
@@ -414,11 +419,16 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
         row('Cursor', '', cursor.el), row('Blinking cursor', '', blink), row('Scrollback', 'Lines kept per terminal.', scroll),
         preview,
       ),
+      h('div', { class: 'section' },
+        h('div', { class: 'section-title' }, 'Server status'),
+        row('Show the status bar', 'Live CPU, memory, network, uptime and disk usage under SSH terminals. Reads /proc over a separate channel; nothing is installed on the server.', monitorOn),
+        row('Refresh', 'Only the tab you are looking at is sampled.', every),
+      ),
     );
     foot.append(
       btn('Reset to defaults', 'ghost', async () => {
         await set({ ...DEFAULT_SETTINGS });
-        theme.set(s.theme); font.value = s.fontFamily; size.value = String(s.fontSize); cursor.set(s.cursorStyle); blink.setAttribute('aria-checked', String(s.cursorBlink)); scroll.value = String(s.scrollback);
+        theme.set(s.theme); font.value = s.fontFamily; size.value = String(s.fontSize); cursor.set(s.cursorStyle); blink.setAttribute('aria-checked', String(s.cursorBlink)); scroll.value = String(s.scrollback); monitorOn.setAttribute('aria-checked', String(s.monitor)); every.value = String(s.monitorInterval);
       }),
       h('span', { class: 'spacer' }), btn('Done', 'primary', () => close()),
     );
