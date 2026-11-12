@@ -8,7 +8,8 @@ import { showMenu } from './menu';
 import { SftpPane } from './sftp-pane';
 import { MonitorBar } from './monitor-bar';
 import { cleanError, toast } from './toast';
-import { applyTheme, fontStack, resolveTheme, termTheme } from './theme';
+import { shellQuote } from '../shared/format';
+import { applyTheme, applyUiFont, fontStack, resolveTheme, termTheme } from './theme';
 import { describeSession, emitChange, savePrefs, state, touchRecent } from './state';
 import type { OpenRequest, SessionInput, SessionKind, SessionSummary } from '../shared/types';
 
@@ -127,7 +128,7 @@ function create(spec: Spec): Tab {
 
   const bar = h('div', { class: 'pane-bar' }, icon(KIND_META[tab.kind].icon, 15), h('span', { class: 'who' }, tab.title), h('span', { class: 'where' }, tab.subtitle), h('span', { class: 'spacer' }), reconnectBtn, tab.kind === 'ssh' ? filesBtn : null, sftpOnly ? null : findBtn);
   if (tab.kind === 'ssh') {
-    tab.sftp = new SftpPane(() => tab.connId);
+    tab.sftp = new SftpPane(() => tab.connId, { openTerminal: (dir) => openTerminalHere(tab, dir) });
     main.append(tab.sftp.el, resizer(tab.sftp.el), termArea);
   } else if (sftpOnly) {
     tab.sftp = new SftpPane(() => tab.connId);
@@ -414,6 +415,13 @@ function resizer(target: HTMLElement): HTMLElement {
   return bar;
 }
 
+/** Types `cd <folder>` into the session's shell, as the file browser's "Open terminal here". */
+function openTerminalHere(tab: Tab, dir: string): void {
+  if (tab.state !== 'connected' || !tab.connId) return void toast('error', 'The session is not connected.');
+  window.termApi.write(tab.connId, `cd ${shellQuote(dir)}\r`);
+  tab.term.focus();
+}
+
 /* ------------------------------------------------------------------ find */
 
 export function toggleFind(tab = activeTab(), forceOpen = false): void {
@@ -563,6 +571,7 @@ export function toggleFiles(): void {
 }
 
 export function applySettingsToTerminals(): void {
+  applyUiFont(state.settings);
   const r = applyTheme(state.settings.theme);
   const o = termOptions();
   for (const t of tabs) {

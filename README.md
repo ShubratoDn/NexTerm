@@ -40,7 +40,10 @@ Working across servers, network gear and your own machine usually means a termin
 **SSH & SFTP**
 - Password, private key (with passphrase prompt) and SSH agent authentication
 - File browser beside the terminal: breadcrumb navigation, sortable columns, multi-select, keyboard control
-- Upload (including drag and drop), download, rename, create folder, delete
+- Upload and download of files and whole folders (including drag and drop), rename, move, create file or folder, delete (with a preview when a folder is not empty)
+- Right-click menus for files, folders and empty space, and a **Properties** dialog with size, dates, owner and editable permissions
+- "Open terminal here" runs `cd` to a folder in the shell beside it
+- Adjustable interface font and size (Settings → Appearance)
 - Host key verification: confirm unknown hosts, hard refusal when a known host's key changes
 
 **Server status bar**
@@ -226,7 +229,7 @@ Your data lives in the app's data folder (`%APPDATA%\NexTerm` on Windows): `sess
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste (`Ctrl+C` copies when text is selected) |
 | `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Zoom in / out / reset |
 
-In the file browser: `Enter` open, `Backspace` parent folder, `F2` rename, `Del` delete, `F5` refresh, `Ctrl+A` select all, `Ctrl+L` edit the path.
+In the file browser: `Enter` open, `Backspace` parent folder, `F2` rename, `Alt+Enter` properties, `Del` delete, `F5` refresh, `Ctrl+A` select all, `Ctrl+L` edit the path.
 
 Application shortcuts use `Ctrl+Shift` so they never steal keys that shells and editors rely on (`Ctrl+W`, `Ctrl+K`, `Ctrl+B`, …).
 

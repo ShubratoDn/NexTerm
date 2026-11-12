@@ -11,7 +11,10 @@ import type {
   SessionInput,
   SessionSummary,
   SftpEntry,
+  SftpStat,
+  SftpTreeSize,
   Settings,
+  TreeTransferResult,
 } from './types';
 
 export interface TermApi {
@@ -58,8 +61,20 @@ export interface TermApi {
     download(connId: string, remotePath: string): Promise<string | null>;
     downloadMany(connId: string, remotePaths: string[]): Promise<{ saved: number; skipped: number; dir: string | null }>;
     upload(connId: string, remoteDir: string): Promise<number>;
-    uploadPaths(connId: string, remoteDir: string, localPaths: string[]): Promise<{ uploaded: number; skipped: number }>;
+    uploadPaths(connId: string, remoteDir: string, localPaths: string[]): Promise<TreeTransferResult>;
     mkdir(connId: string, path: string): Promise<void>;
+    /** Creates an empty file; fails if it already exists. */
+    mkfile(connId: string, path: string): Promise<void>;
+    stat(connId: string, path: string): Promise<SftpStat>;
+    chmod(connId: string, path: string, mode: number): Promise<void>;
+    /** Total size of a folder, counted on the server by walking it (bounded). */
+    treeSize(connId: string, path: string): Promise<SftpTreeSize>;
+    /** Downloads a folder with everything in it; asks for the destination. */
+    downloadTree(connId: string, remotePath: string): Promise<TreeTransferResult>;
+    /** Asks for a local folder and uploads it, with everything in it, into emoteDir. */
+    uploadFolder(connId: string, remoteDir: string): Promise<TreeTransferResult>;
+    /** Deletes a folder and everything in it. */
+    removeTree(connId: string, path: string): Promise<TreeTransferResult>;
     rename(connId: string, from: string, to: string): Promise<void>;
     remove(connId: string, path: string, isDir: boolean): Promise<void>;
   };

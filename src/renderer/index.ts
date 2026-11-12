@@ -6,7 +6,7 @@ import { importDialog } from './import-dialog';
 import { openPalette } from './palette';
 import type { PaletteItem } from './palette';
 import { initSidebar, renderSidebar } from './sidebar';
-import { applyTheme, resolveTheme } from './theme';
+import { applyTheme, applyUiFont, resolveTheme } from './theme';
 import { cleanError, toast } from './toast';
 import { describeSession, emitChange, onStateChange, recentSessions, savePrefs, state } from './state';
 import {
@@ -302,6 +302,7 @@ function onChange(): void {
 
 async function init(): Promise<void> {
   state.settings = await api.getSettings();
+  applyUiFont(state.settings);
   applyTheme(state.settings.theme);
   // xterm measures glyphs once, so the bundled fonts must be ready before the first terminal opens.
   await Promise.all(['400 13px "JetBrains Mono"', '700 13px "JetBrains Mono"', '400 13px "Inter"'].map((f) => document.fonts.load(f))).catch(() => undefined);

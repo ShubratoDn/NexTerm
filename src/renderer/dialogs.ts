@@ -373,6 +373,19 @@ export function quickDialog(serialPorts: string[]): Promise<QuickResult | null> 
 
 const FONT_CHOICES = ['JetBrains Mono', 'Cascadia Mono', 'Consolas', 'Menlo', 'Courier New'];
 
+/** Choices for the interface font (not the terminal). Inter is bundled; the others come from the system. */
+const UI_FONT_CHOICES: { value: string; label: string }[] = [
+  { value: 'Inter', label: 'Inter (default)' },
+  { value: 'system-ui', label: 'System default' },
+  { value: 'Segoe UI', label: 'Segoe UI' },
+  { value: 'Arial', label: 'Arial' },
+  { value: 'Verdana', label: 'Verdana' },
+  { value: 'Tahoma', label: 'Tahoma' },
+  { value: 'Trebuchet MS', label: 'Trebuchet MS' },
+  { value: 'Calibri', label: 'Calibri' },
+  { value: 'JetBrains Mono', label: 'JetBrains Mono (monospace)' },
+];
+
 export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) => Promise<Settings>): Promise<void> {
   return modal<void>({ title: 'Settings', width: 520 }, ({ body, foot, close }) => {
     let s = { ...cur };
@@ -388,6 +401,11 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
       h('div', { class: 'setting' }, h('div', { class: 'txt' }, h('div', { class: 't' }, title), desc ? h('div', { class: 'd' }, desc) : null), control);
 
     const theme = segmented<Settings['theme']>([{ value: 'system', label: 'System', icon: 'monitor' }, { value: 'light', label: 'Light', icon: 'sun' }, { value: 'dark', label: 'Dark', icon: 'moon' }], s.theme, (v) => void set({ theme: v }));
+    const uiFonts = UI_FONT_CHOICES.some((f) => f.value === s.uiFontFamily) ? UI_FONT_CHOICES : [{ value: s.uiFontFamily, label: s.uiFontFamily }, ...UI_FONT_CHOICES];
+    const uiFont = h('select', { class: 'input', 'aria-label': 'Interface font' }, ...uiFonts.map((f) => h('option', { value: f.value, selected: f.value === s.uiFontFamily }, f.label)));
+    uiFont.addEventListener('change', () => void set({ uiFontFamily: uiFont.value }));
+    const uiSize = h('input', { class: 'input', type: 'number', min: '10', max: '20', value: String(s.uiFontSize), 'aria-label': 'Interface font size' });
+    uiSize.addEventListener('change', () => { const n = Math.min(20, Math.max(10, Math.round(Number(uiSize.value) || 13))); uiSize.value = String(n); void set({ uiFontSize: n }); });
     const fonts = FONT_CHOICES.includes(s.fontFamily) ? FONT_CHOICES : [s.fontFamily, ...FONT_CHOICES];
     const font = h('select', { class: 'input' }, ...fonts.map((f) => h('option', { value: f, selected: f === s.fontFamily }, f)));
     font.addEventListener('change', () => void set({ fontFamily: font.value }));
@@ -412,7 +430,7 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
     updatePreview();
 
     body.append(
-      h('div', { class: 'section' }, h('div', { class: 'section-title' }, 'Appearance'), row('Theme', 'Follows the operating system by default.', theme.el)),
+      h('div', { class: 'section' }, h('div', { class: 'section-title' }, 'Appearance'), row('Theme', 'Follows the operating system by default.', theme.el), row('Interface font', 'Menus, sidebar, dialogs and the file browser. The terminal has its own font below.', uiFont), row('Interface font size', 'In pixels (10 to 20).', uiSize)),
       h('div', { class: 'section' },
         h('div', { class: 'section-title' }, 'Terminal'),
         row('Font', '', font), row('Font size', 'Also Ctrl + / Ctrl − in a terminal.', size),
@@ -428,7 +446,7 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
     foot.append(
       btn('Reset to defaults', 'ghost', async () => {
         await set({ ...DEFAULT_SETTINGS });
-        theme.set(s.theme); font.value = s.fontFamily; size.value = String(s.fontSize); cursor.set(s.cursorStyle); blink.setAttribute('aria-checked', String(s.cursorBlink)); scroll.value = String(s.scrollback); monitorOn.setAttribute('aria-checked', String(s.monitor)); every.value = String(s.monitorInterval);
+        theme.set(s.theme); font.value = s.fontFamily; size.value = String(s.fontSize); cursor.set(s.cursorStyle); blink.setAttribute('aria-checked', String(s.cursorBlink)); scroll.value = String(s.scrollback); monitorOn.setAttribute('aria-checked', String(s.monitor)); every.value = String(s.monitorInterval); uiFont.value = s.uiFontFamily; uiSize.value = String(s.uiFontSize);
       }),
       h('span', { class: 'spacer' }), btn('Done', 'primary', () => close()),
     );

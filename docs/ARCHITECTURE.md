@@ -89,6 +89,13 @@ The file browser is a renderer component (`src/renderer/sftp-pane.ts`) backed by
 - Downloads of several files ask for one destination folder and never overwrite: `name.txt` becomes `name (1).txt`.
 - Remote names that come from the UI must be a single path component (no `/`, `\`, `.` or `..`).
 
+Folder operations live in `src/main/sftp-tree.ts` (pure helpers, unit-tested) and `src/main/sftp.ts`:
+
+- `sftp:treeSize` walks a folder for the Properties dialog and the delete confirmation. The walk is bounded (entry count, depth, time) and reports `truncated` instead of running forever.
+- `sftp:downloadTree` / `sftp:uploadFolder` / `sftp:uploadPaths` copy whole folders. Symbolic links are never followed, every remote name is checked with `isSafeName`, and a download refuses any entry whose destination would leave the chosen folder. Existing names are never overwritten.
+- `sftp:removeTree` deletes files first and folders deepest-first. It refuses `/` and top-level folders, and the renderer shows the file and folder count before asking.
+- `sftp:stat`, `sftp:chmod` and `sftp:mkfile` back the Properties dialog and "New file". `chmod` accepts only a mode from 0 to 0777; special bits are not offered.
+
 ## IPC channels
 
 | Channel | Direction | Purpose |

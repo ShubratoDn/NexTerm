@@ -44,6 +44,10 @@ export interface Settings {
   scrollback: number;
   cursorBlink: boolean;
   cursorStyle: 'block' | 'bar' | 'underline';
+  /** Font family of the interface (not the terminal). */
+  uiFontFamily: string;
+  /** Base size of the interface text in pixels. */
+  uiFontSize: number;
   /** Show live server statistics under SSH terminals. */
   monitor: boolean;
   /** Seconds between server statistics samples. */
@@ -57,6 +61,8 @@ export const DEFAULT_SETTINGS: Settings = {
   scrollback: 10000,
   cursorBlink: true,
   cursorStyle: 'bar',
+  uiFontFamily: 'Inter',
+  uiFontSize: 13,
   monitor: true,
   monitorInterval: 3,
 };
@@ -195,4 +201,39 @@ export interface ServerStats {
   disks: DiskStat[];
   /** Only present while the details panel is open. */
   processes?: ProcessStat[];
+}
+/* ------------------------------------------------------------------ file browser extras */
+
+/** Full details of one remote file or folder (a symbolic link is described, not followed). */
+export interface SftpStat {
+  path: string;
+  name: string;
+  isDir: boolean;
+  isLink: boolean;
+  linkTarget?: string;
+  /** For links: whether the target is a folder. */
+  targetIsDir?: boolean;
+  size: number;
+  mode: number;
+  uid: number;
+  gid: number;
+  atimeMs: number;
+  mtimeMs: number;
+}
+
+export interface SftpTreeSize {
+  bytes: number;
+  files: number;
+  dirs: number;
+  /** The walk stopped at a safety limit, so the numbers are a lower bound. */
+  truncated: boolean;
+}
+
+export interface TreeTransferResult {
+  files: number;
+  folders: number;
+  /** Entries that could not be transferred (symbolic links, unreadable files, invalid names). */
+  skipped: number;
+  firstError?: string;
+  dir?: string | null;
 }

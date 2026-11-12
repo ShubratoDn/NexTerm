@@ -9,12 +9,12 @@ import { KnownHosts, SessionStore, SettingsStore } from './store';
 import type { ResolvedSession } from './store';
 import { openLocal, openSerial, openSsh, openTelnet } from './connections';
 import type { Conn } from './connections';
-import { assertBaseName, joinRemote, sftpOps, uniqueName } from './sftp';
+import { assertBaseName, chmodRemote, downloadTree, joinRemote, mkfileRemote, removeTree, sftpOps, statRemote, treeSizeRemote, uniqueName, uploadTree } from './sftp';
 import { checkSize, parseSessionInput, parseSettingsPatch } from './validate';
 import { MonitorHub } from './monitor';
 import { REGISTRY, buildPreview, detectSources, loadSource } from './importers';
 import { sessionKey } from './importers/common';
-import type { ImportSourceId, OpenRequest, OpenResult } from '../shared/types';
+import type { ImportSourceId, OpenRequest, OpenResult, TreeTransferResult } from '../shared/types';
 
 const INDEX = path.join(__dirname, '..', 'renderer', 'index.html');
 const INDEX_URL = pathToFileURL(INDEX).href;
@@ -279,33 +279,61 @@ function registerIpc(): void {
     const s = await getSftp(id, e.sender.id);
     const remoteDir = str(dir, 'path');
     if (!Array.isArray(paths) || paths.length > 1000) throw new Error('invalid file list');
-    let uploaded = 0;
-    let skipped = 0;
+    const out: TreeTransferResult = { files: 0, folders: 0, skipped: 0 };
     for (const p of paths) {
       const local = str(p, 'path');
-      // Only files the user dropped onto the window are accepted, and each registration is single-use.
+      // Only files and folders the user dropped onto the window are accepted, and each registration is single-use.
       if (!dropped.delete(local)) {
-        skipped++;
+        out.skipped++;
         continue;
       }
-      let isFile = false;
+      let kind: 'file' | 'dir' | 'other' = 'other';
       try {
-        isFile = fs.statSync(local).isFile();
+        const st = fs.lstatSync(local);
+        kind = st.isSymbolicLink() ? 'other' : st.isFile() ? 'file' : st.isDirectory() ? 'dir' : 'other';
       } catch {
         /* vanished */
       }
-      if (!isFile) {
-        skipped++;
-        continue;
-      }
-      const name = path.basename(local);
-      assertBaseName(name);
-      await sftpOps.put(s, local, joinRemote(remoteDir, name));
-      uploaded++;
+      if (kind === 'file') {
+        const name = path.basename(local);
+        assertBaseName(name);
+        await sftpOps.put(s, local, joinRemote(remoteDir, name));
+        out.files++;
+      } else if (kind === 'dir') {
+        const r = await uploadTree(s, local, remoteDir);
+        out.files += r.files;
+        out.folders += r.folders;
+        out.skipped += r.skipped;
+        out.firstError ??= r.firstError;
+      } else out.skipped++;
     }
-    return { uploaded, skipped };
+    return out;
   });
 
+  handle('sftp:mkfile', async (e, id, p) => mkfileRemote(await getSftp(id, e.sender.id), str(p, 'path')));
+  handle('sftp:stat', async (e, id, p) => statRemote(await getSftp(id, e.sender.id), str(p, 'path')));
+  handle('sftp:chmod', async (e, id, p, mode) => {
+    if (typeof mode !== 'number' || !Number.isInteger(mode) || mode < 0 || mode > 0o7777) throw new Error('invalid permissions');
+    return chmodRemote(await getSftp(id, e.sender.id), str(p, 'path'), mode);
+  });
+  handle('sftp:treeSize', async (e, id, p) => treeSizeRemote(await getSftp(id, e.sender.id), str(p, 'path')));
+  handle('sftp:removeTree', async (e, id, p) => removeTree(await getSftp(id, e.sender.id), str(p, 'path')));
+  handle('sftp:downloadTree', async (e, id, p) => {
+    const s = await getSftp(id, e.sender.id);
+    const remote = str(p, 'path');
+    const win = BrowserWindow.fromWebContents(e.sender)!;
+    const r = await dialog.showOpenDialog(win, { title: 'Choose where to save the folder', properties: ['openDirectory', 'createDirectory'] });
+    if (r.canceled || !r.filePaths[0]) return { files: 0, folders: 0, skipped: 0, dir: null } satisfies TreeTransferResult;
+    return downloadTree(s, remote, r.filePaths[0]);
+  });
+  handle('sftp:uploadFolder', async (e, id, dir) => {
+    const s = await getSftp(id, e.sender.id);
+    const remoteDir = str(dir, 'path');
+    const win = BrowserWindow.fromWebContents(e.sender)!;
+    const r = await dialog.showOpenDialog(win, { title: 'Choose a folder to upload', properties: ['openDirectory'] });
+    if (r.canceled || !r.filePaths[0]) return { files: 0, folders: 0, skipped: 0 } satisfies TreeTransferResult;
+    return uploadTree(s, r.filePaths[0], remoteDir);
+  });
   handle('sftp:realpath', async (e, id, p) => sftpOps.realpath(await getSftp(id, e.sender.id), str(p, 'path')));
   handle('sftp:list', async (e, id, p) => sftpOps.list(await getSftp(id, e.sender.id), str(p, 'path')));
   handle('sftp:mkdir', async (e, id, p) => sftpOps.mkdir(await getSftp(id, e.sender.id), str(p, 'path')));
@@ -339,7 +367,9 @@ function registerIpc(): void {
       const name = path.posix.basename(remotePath);
       assertBaseName(name);
       if (await sftpOps.isDir(s, remotePath)) {
-        skipped++; // folder download is not supported yet
+        const r = await downloadTree(s, remotePath, dir);
+        saved += r.files;
+        skipped += r.skipped;
         continue;
       }
       const target = path.join(dir, uniqueName(name, (c) => fs.existsSync(path.join(dir, c))));

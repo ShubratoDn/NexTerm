@@ -29,6 +29,20 @@ export function fontStack(name: string): string {
   return `"${clean}", "JetBrains Mono", "Cascadia Mono", Consolas, Menlo, monospace`;
 }
 
+/** CSS font stack for the interface font chosen in Settings. */
+export function uiFontStack(name: string): string {
+  const clean = name.replace(/["\\]/g, '');
+  if (clean === 'system-ui') return `system-ui, 'Segoe UI Variable Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif`;
+  return `"${clean}", "Inter", system-ui, 'Segoe UI', sans-serif`;
+}
+
+/** Applies the interface font family and size (the terminal has its own font setting). */
+export function applyUiFont(s: Pick<Settings, 'uiFontFamily' | 'uiFontSize'>): void {
+  const root = document.documentElement.style;
+  root.setProperty('--font-ui', uiFontStack(s.uiFontFamily));
+  root.setProperty('--fs', `${s.uiFontSize}px`);
+}
+
 export function applyTheme(pref: Settings['theme']): Resolved {
   const r = resolveTheme(pref);
   document.documentElement.dataset.theme = r;

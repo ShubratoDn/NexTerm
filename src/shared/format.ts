@@ -45,3 +45,31 @@ export function levelFor(percent: number | null): Level {
   if (percent === null) return 'ok';
   return percent >= 90 ? 'bad' : percent >= 75 ? 'warn' : 'ok';
 }
+
+/* ---------- permissions ---------- */
+
+/** A Unix mode as "drwxr-xr-x" (type letter first). */
+export function modeToSymbolic(mode: number, kind: 'file' | 'dir' | 'link' = 'file'): string {
+  const bits = 'rwxrwxrwx';
+  let out = kind === 'dir' ? 'd' : kind === 'link' ? 'l' : '-';
+  for (let i = 0; i < 9; i++) out += mode & (1 << (8 - i)) ? bits[i] : '-';
+  const chars = out.split('');
+  if (mode & 0o4000) chars[3] = chars[3] === 'x' ? 's' : 'S'; // setuid
+  if (mode & 0o2000) chars[6] = chars[6] === 'x' ? 's' : 'S'; // setgid
+  if (mode & 0o1000) chars[9] = chars[9] === 'x' ? 't' : 'T'; // sticky
+  return chars.join('');
+}
+
+/** "755" or "0644" as a number; null when it is not 1 to 4 octal digits. */
+export function parseOctalMode(text: string): number | null {
+  const t = text.trim();
+  if (!/^[0-7]{1,4}$/.test(t)) return null;
+  return parseInt(t, 8);
+}
+
+export const formatOctal = (mode: number): string => (mode & 0o7777).toString(8).padStart(4, '0');
+
+/** Quotes a path so a POSIX shell (and fish) reads it as one literal word. */
+export function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}

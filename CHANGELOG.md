@@ -4,6 +4,15 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Added
+- **Properties** for any file or folder: type, path, size, dates, owner and editable permissions (checkboxes and octal), a "Calculate size" button for folders, and a summary when several items are selected
+- Much richer right-click menus in the file browser for files, folders and empty space: open, download, upload here, new file or folder inside, rename, move to, copy path or name, open terminal here, properties, delete
+- Download, upload and delete of whole folders, including drag and drop of folders; "Delete with contents" shows how many files and folders will go before it asks
+- **Interface font and size** in Settings → Appearance, applied immediately
+
+### Fixed
+- Double-clicking a folder in the file browser did nothing with a real mouse, because the list was redrawn on the first click
+
 ## [0.3.0] - 2026-11-12
 
 ### Added
