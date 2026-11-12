@@ -4,6 +4,8 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-12
+
 ### Added
 - **Properties** for any file or folder: type, path, size, dates, owner and editable permissions (checkboxes and octal), a "Calculate size" button for folders, and a summary when several items are selected
 - Much richer right-click menus in the file browser for files, folders and empty space: open, download, upload here, new file or folder inside, rename, move to, copy path or name, open terminal here, properties, delete
