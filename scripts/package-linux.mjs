@@ -125,7 +125,8 @@ for (const f of readdirSync(outDir)) {
   const s = statSync(join(outDir, f));
   if (s.isFile() && Object.values(EXT).some((e) => f.endsWith(e))) {
     console.log(`  release/linux/${f}  (${(s.size / 1024 / 1024).toFixed(1)} MB)`);
-    sums.push(`  ${f}`);
+    const digest = createHash('sha256').update(readFileSync(join(outDir, f))).digest('hex');
+    sums.push(`${digest}  ${f}`);
   }
 }
 writeFileSync(join(outDir, 'SHA256SUMS.txt'), sums.join('\n') + '\n');

@@ -1,7 +1,7 @@
 // Builds the app, packages it, zips it and writes checksums. Everything lands in ./release.
 // Usage: npm run release
 import { createHash } from 'node:crypto';
-import { createReadStream, existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -27,15 +27,24 @@ npm(['test']);
 console.log('\n== package ==');
 npm(['run', 'package']);
 
-const folder = readdirSync('release', { withFileTypes: true }).find((d) => d.isDirectory());
-if (!folder) throw new Error('packager produced no folder');
+// Pick the packager's output by its exact name: release/ also holds other things (for example release/linux).
+const folder = { name: `NexTerm-${process.platform}-${process.arch}` };
+const exe = process.platform === 'win32' ? 'NexTerm.exe' : process.platform === 'darwin' ? 'NexTerm.app' : 'NexTerm';
+if (!existsSync(join('release', folder.name, exe))) throw new Error(`release/${folder.name}/${exe} was not produced`);
 
 console.log(`\n== zip ${zipName} ==`);
 if (existsSync(zipPath)) rmSync(zipPath);
 if (process.platform === 'win32') {
   // The .NET writer at its fastest level is several times quicker than Compress-Archive on this package.
-  const ps = `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +
-    `[IO.Compression.ZipFile]::CreateFromDirectory('${join(process.cwd(), 'release', folder.name)}', '${join(process.cwd(), zipPath)}', [IO.Compression.CompressionLevel]::Fastest, $true)`;
+  // Entries are added one by one so their names use forward slashes, as the ZIP format requires
+  // (ZipFile.CreateFromDirectory on Windows PowerShell 5.1 writes backslashes, which other tools mis-extract).
+  const ps =
+    `Add-Type -AssemblyName System.IO.Compression,System.IO.Compression.FileSystem; ` +
+    `$src='${join(process.cwd(), 'release', folder.name)}'; $zip='${join(process.cwd(), zipPath)}'; $base=Split-Path $src -Parent; ` +
+    `$fs=[IO.File]::Open($zip,'Create'); $a=New-Object IO.Compression.ZipArchive($fs,[IO.Compression.ZipArchiveMode]::Create); ` +
+    `Get-ChildItem -LiteralPath $src -Recurse -File | ForEach-Object { $rel=$_.FullName.Substring($base.Length+1).Replace('\\','/'); ` +
+    `[void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($a,$_.FullName,$rel,[IO.Compression.CompressionLevel]::Fastest) }; ` +
+    `$a.Dispose(); $fs.Dispose()`;
   run('powershell', ['-NoProfile', '-Command', ps]);
 } else {
   run('zip', ['-r', '-q', '-9', `../${zipName}`, folder.name], { cwd: 'release' });
