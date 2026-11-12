@@ -101,7 +101,7 @@ Working across servers, network gear and your own machine usually means a termin
 
 ### Download (Windows)
 
-1. Download `NexTerm-v0.2.0-win-x64.zip` from the [Releases page](https://github.com/ShubratoDn/NexTerm/releases).
+1. Download `NexTerm-v0.3.0-win-x64.zip` from the [Releases page](https://github.com/ShubratoDn/NexTerm/releases).
 2. Extract the zip anywhere, for example `C:\Apps\NexTerm`.
 3. Run `NexTerm.exe`.
 
@@ -110,8 +110,8 @@ It is a portable folder: no installer, nothing written outside the folder except
 ### Download (Linux, 64-bit)
 
 ```bash
-tar -xzf NexTerm-v0.2.0-linux-x64.tar.gz
-cd NexTerm-v0.2.0-linux-x64
+tar -xzf NexTerm-v0.3.0-linux-x64.tar.gz
+cd NexTerm-v0.3.0-linux-x64
 ./nexterm
 ```
 

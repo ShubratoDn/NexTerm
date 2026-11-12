@@ -4,6 +4,8 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-12
+
 ### Added
 - **Server status bar** under SSH terminals: host, CPU with a history graph, memory, upload and download speed, uptime, logged-in users and disk usage per mount, with a details panel (load, swap, network interfaces, disks, busiest processes). Agentless and read-only; only the visible tab is sampled; configurable or off in Settings and the command palette
 - Linux packaging: `npm run package:linux` builds a `.tar.gz` on any OS and AppImage, `.deb` and `.rpm` on Linux (or WSL)
@@ -41,6 +43,7 @@ First public version.
 - Smaller package: Chromium translation files other than en-US are not shipped (about 48 MB saved)
 - Generated brand assets (icons, banner, social preview) from a single source logo
 
-[Unreleased]: https://github.com/ShubratoDn/NexTerm/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ShubratoDn/NexTerm/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ShubratoDn/NexTerm/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ShubratoDn/NexTerm/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ShubratoDn/NexTerm/releases/tag/v0.1.0
