@@ -544,3 +544,7 @@ dialog.palette[open] { animation: pop 0.12s ease-out; }
 /* ---- version shown in the status bar and on the start screen */
 .welcome-inner h1 .ver { margin-left: 10px; font-size: calc(var(--fs) * 0.9231); font-weight: 500; color: var(--text-3); letter-spacing: 0; }
 #statusbar .item.version { color: var(--text-3); }
+
+/* ---- update indicator in the status bar */
+#statusbar .item.update { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; padding: 0 8px; height: 100%; }
+#statusbar .item.update:hover { background: var(--accent-soft); }

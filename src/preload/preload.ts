@@ -1,11 +1,19 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { TermApi } from '../shared/api';
-import type { EditStatus, ServerStats, TransferProgress } from '../shared/types';
+import type { EditStatus, ServerStats, TransferProgress, UpdateStatus } from '../shared/types';
 
 const api: TermApi = {
   writeClipboard: (text) => ipcRenderer.invoke('clipboard:write', text),
   readClipboard: () => ipcRenderer.invoke('clipboard:read'),
   getVersion: () => ipcRenderer.invoke('app:version'),
+  getUpdateStatus: () => ipcRenderer.invoke('update:status'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdateStatus: (cb) => {
+    const l = (_e: unknown, s: UpdateStatus) => cb(s);
+    ipcRenderer.on('update:status', l);
+    return () => void ipcRenderer.removeListener('update:status', l);
+  },
   listSessions: () => ipcRenderer.invoke('sessions:list'),
   saveSession: (s) => ipcRenderer.invoke('sessions:save', s),
   deleteSession: (id) => ipcRenderer.invoke('sessions:delete', id),

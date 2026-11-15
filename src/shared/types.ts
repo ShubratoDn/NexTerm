@@ -59,6 +59,8 @@ export interface Settings {
    * It can only be set through the native file chooser in the main process, never from the page.
    */
   editorPath: string;
+  /** Look for a new version of NexTerm now and then, and download it in the background. */
+  autoUpdate: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -74,6 +76,7 @@ export const DEFAULT_SETTINGS: Settings = {
   monitor: true,
   monitorInterval: 3,
   editorPath: '',
+  autoUpdate: true,
 };
 
 export interface OpenRequest {
@@ -281,4 +284,19 @@ export interface EditOpened {
   name: string;
   /** Short name of the program it was opened in. */
   program: string;
+}
+
+/** State of the automatic update. */
+export interface UpdateStatus {
+  state: 'unsupported' | 'idle' | 'checking' | 'downloading' | 'ready' | 'current' | 'error';
+  /** The version that is running. */
+  current: string;
+  /** The newer version, while it downloads and once it is ready. */
+  version?: string;
+  /** Download progress, 0 to 100. */
+  percent?: number;
+  /** Why updates are unavailable, or what went wrong. */
+  message?: string;
+  /** When the last check finished (ms since 1970). */
+  checkedAt?: number;
 }

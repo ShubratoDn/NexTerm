@@ -86,6 +86,10 @@ export function parseSettingsPatch(x: unknown): Partial<Settings> {
     out.monitor = o.monitor;
   }
   if (o.monitorInterval !== undefined) out.monitorInterval = int(o.monitorInterval, 'monitorInterval', 1, 60);
+  if (o.autoUpdate !== undefined) {
+    if (typeof o.autoUpdate !== 'boolean') throw new Error('invalid autoUpdate setting');
+    out.autoUpdate = o.autoUpdate;
+  }
   if (o.cursorBlink !== undefined) {
     if (typeof o.cursorBlink !== 'boolean') throw new Error('invalid cursorBlink');
     out.cursorBlink = o.cursorBlink;

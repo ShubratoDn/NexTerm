@@ -10,6 +10,7 @@ import { applyTheme, applyUiFont, resolveTheme } from './theme';
 import { cleanError, toast } from './toast';
 import { initTransfers } from './transfers';
 import { initEditing } from './editing';
+import { initUpdates, restartForUpdate } from './updates';
 import { describeSession, emitChange, onStateChange, recentSessions, savePrefs, state } from './state';
 import {
   activate, activeTab, allTabs, applySettingsToTerminals, closeTab, connectedSessionIds, cycle, duplicateTab, hooks, initWorkspaceEvents,
@@ -320,7 +321,9 @@ function renderStatus(): void {
 
   const bar = $('statusbar');
   bar.replaceChildren();
-  put(bar, left, h('span', { class: 'spacer' }), mx, t && t.kind !== 'sftp' && h('span', { class: 'item' }, `${t.term.cols} × ${t.term.rows}`), h('span', { class: 'item' }, 'UTF-8'), state.version ? h('span', { class: 'item version', title: 'NexTerm version' }, `v${state.version}`) : null);
+  const up = state.update?.state === 'ready' ? h('button', { class: 'item update', title: `Restart to install NexTerm ${state.update.version ?? ''}` }, icon('download', 12), `Update ${state.update.version ?? ''} ready`) : null;
+  up?.addEventListener('click', () => void restartForUpdate());
+  put(bar, left, h('span', { class: 'spacer' }), up, mx, t && t.kind !== 'sftp' && h('span', { class: 'item' }, `${t.term.cols} × ${t.term.rows}`), h('span', { class: 'item' }, 'UTF-8'), state.version ? h('span', { class: 'item version', title: 'NexTerm version' }, `v${state.version}`) : null);
 }
 
 /* ------------------------------------------------------------------ bootstrap */
@@ -354,6 +357,7 @@ async function init(): Promise<void> {
   initTransfers();
   initWheelZoom();
   initEditing();
+  initUpdates(() => allTabs().filter((t) => t.state === 'connected').length);
   initSidebar({
     newSession: () => void editSession(),
     quickConnect: () => void quickConnect(),

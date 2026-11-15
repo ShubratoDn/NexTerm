@@ -4,27 +4,25 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
-### Added
-- **Paste files copied in Windows Explorer** (or in a Linux file manager) into the file browser: copy files or folders on your computer, then `Ctrl+V` or right-click, Paste, uploads them, with the usual progress card. Existing server files are never replaced; a name that is taken becomes `name (1).ext`. Files copied inside NexTerm are still pasted on the server, and whichever you copied last wins
+## [0.6.0] - 2026-11-15
 
 ### Added
-- **Zoom with Ctrl + mouse wheel** (wheel up zooms in, wheel down zooms out; a trackpad pinch works too). Over the terminal or the file browser, only those two change size. Anywhere else the interface text size changes, and the terminal follows by the same amount so everything stays in proportion. `Ctrl+=` and `Ctrl+-` behave the same way according to where the keyboard focus is, and `Ctrl+0` resets all sizes. The file browser now has its own size, kept relative to the interface size
+- **Automatic updates** for the Windows setup program. NexTerm looks for a new version when it starts and every few hours, downloads it in the background (only the changed parts), and shows "Update ready" in the status bar and a notification. Restart when it suits you, or just close NexTerm normally and the update is installed. Settings → About shows the state, has a "Check now" button and a switch to turn automatic checks off. Portable copies and the MSI say that they cannot update themselves. The first time, install this version with the Setup program; after that you never download again
+- **Copy, cut and paste** of files and folders in the file browser (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`, or the right-click menu), within one server or between two servers. Nothing is overwritten: a name that already exists becomes `name (1).ext`. Cut items are dimmed until pasted, and the paths are also copied to the system clipboard as text
+- **Paste files copied in Windows Explorer** (or in a Linux file manager) into the file browser: copy files or folders on your computer, then `Ctrl+V` or right-click, Paste, uploads them, with the usual progress card. Existing server files are never replaced. Files copied inside NexTerm are still pasted on the server, and whichever you copied last wins
+- **Edit** a remote file in a local editor: double-click it (or `F4`, or right-click, Edit). The file is downloaded to a private temporary folder, opened, and every time you save it there it is uploaded back automatically. If the file changed on the server in the meantime, NexTerm asks before replacing it
+- **Open with…** any program on your computer, and **Open with default app** (refused for file types that would run, such as `.exe`, `.bat`, `.ps1` or `.sh`)
+- **Editor setting** in Settings → Files: choose the program used by Edit, or keep the system text editor (Notepad, TextEdit, or the first editor found on Linux)
+- **Zoom with Ctrl + mouse wheel** (wheel up zooms in, wheel down zooms out; a trackpad pinch works too). Over the terminal or the file browser, only those two change size. Anywhere else the interface text size changes, and the terminal follows by the same amount so everything stays in proportion. `Ctrl+=` and `Ctrl+-` behave the same way according to where the keyboard focus is, and `Ctrl+0` resets all sizes
+- Copying shows the same live progress card as uploads and downloads
+- **The version number is shown** in the status bar, on the start screen and in Settings → About
 
 ### Fixed
 - Copying sometimes failed with "Failed to execute 'writeText' on 'Clipboard': Write permission denied". Copy and paste (terminal, file browser, Properties, server summary) now go through the application itself instead of the browser clipboard, which needed a permission the app always refuses
 
-## [0.6.0] - 2026-11-15
-
-### Added
-- **Copy, cut and paste** of files and folders in the file browser (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`, or the right-click menu), within one server or between two servers. Nothing is overwritten: a name that already exists becomes `name (1).ext`. Cut items are dimmed until pasted, and the paths are also copied to the system clipboard as text
-- **Edit** a remote file in a local editor: double-click it (or `F4`, or right-click, Edit). The file is downloaded to a private temporary folder, opened, and every time you save it there it is uploaded back automatically. If the file changed on the server in the meantime, NexTerm asks before replacing it
-- **Open with…** any program on your computer, and **Open with default app** (refused for file types that would run, such as `.exe`, `.bat`, `.ps1` or `.sh`)
-- **Editor setting** in Settings → Files: choose the program used by Edit, or keep the system text editor (Notepad, TextEdit, or the first editor found on Linux)
-- Copying shows the same live progress card as uploads and downloads
-- **The version number is shown** in the status bar, on the start screen and in Settings → About
-
 ### Security
 - The editor program can only be chosen through a native file chooser; the page cannot set or run one. Local copies of edited files are kept in a private folder and deleted when NexTerm closes
+- Updates are checked against a SHA-512 checksum published with each release; a download that does not match is discarded
 
 ## [0.5.0] - 2026-11-15
 

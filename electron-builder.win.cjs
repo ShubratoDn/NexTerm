@@ -7,6 +7,11 @@ module.exports = {
   directories: { output: 'release/installers', buildResources: 'assets' },
   win: { icon: 'assets/icon.ico' },
 
+  // Where installed copies look for new versions: the files of the latest GitHub release. Nothing is uploaded by the
+  // build itself (it runs with publish "never"); this only writes app-update.yml into the app and latest.yml next to
+  // the installer.
+  publish: { provider: 'github', owner: 'ShubratoDn', repo: 'NexTerm', releaseType: 'release' },
+
   // Setup program: installs for the current user (no administrator rights), lets the user pick the folder.
   nsis: {
     oneClick: false,

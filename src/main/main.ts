@@ -14,6 +14,7 @@ import { Transfer } from './transfer';
 import { EditManager, validateProgram } from './editor';
 import { copyItems } from './sftp-copy';
 import { readClipboardFiles } from './os-clipboard';
+import { Updater } from './updater';
 import { checkSize, parseSessionInput, parseSettingsPatch } from './validate';
 import { MonitorHub } from './monitor';
 import { REGISTRY, buildPreview, detectSources, loadSource } from './importers';
@@ -54,6 +55,7 @@ async function runTransfer<T>(t: Transfer, fn: () => Promise<T>): Promise<T> {
 
 let hub: MonitorHub;
 let editing: EditManager;
+let updater: Updater;
 let sessions: SessionStore;
 let settings: SettingsStore;
 let knownHosts: KnownHosts;
@@ -231,6 +233,9 @@ function registerIpc(): void {
     });
 
   handle('app:version', () => app.getVersion());
+  handle('update:status', () => updater.current);
+  handle('update:check', () => updater.check());
+  handle('update:install', () => updater.install());
   // The page may not use navigator.clipboard (it needs a permission that is always denied here), so copy and paste go through here.
   handle('clipboard:write', (_e, text) => {
     if (typeof text !== 'string' || text.length > 20_000_000) throw new Error('invalid clipboard text');
@@ -615,9 +620,16 @@ app.whenReady().then(() => {
       }),
     tmpRoot: path.join(app.getPath('userData'), 'edit-tmp'),
   });
+  updater = new Updater(
+    (s) => {
+      for (const wc of webContents.getAllWebContents()) if (!wc.isDestroyed()) wc.send('update:status', s);
+    },
+    () => settings.get().autoUpdate,
+  );
   Menu.setApplicationMenu(null);
   registerIpc();
   createWindow();
+  updater.start();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

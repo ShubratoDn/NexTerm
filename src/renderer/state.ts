@@ -1,4 +1,4 @@
-import type { ImportSourceInfo, SessionSummary, Settings } from '../shared/types';
+import type { ImportSourceInfo, SessionSummary, Settings, UpdateStatus } from '../shared/types';
 import { DEFAULT_SETTINGS } from '../shared/types';
 
 /** Layout preferences that only matter to this window; kept in localStorage. */
@@ -41,6 +41,8 @@ export const state = {
   importSources: [] as ImportSourceInfo[],
   /** Version of the application, for example "0.6.0". Empty until it has been read. */
   version: '',
+  /** State of the automatic update (null until it has been read). */
+  update: null as UpdateStatus | null,
 };
 
 export function savePrefs(): void {

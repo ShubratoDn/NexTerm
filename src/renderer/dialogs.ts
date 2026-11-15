@@ -6,6 +6,8 @@ import { defaultPort, parseQuickTarget } from '../shared/quick';
 import type { AuthMethod, SessionInput, SessionKind, SessionSummary, Settings } from '../shared/types';
 import { DEFAULT_SETTINGS } from '../shared/types';
 import { state } from './state';
+import { describeUpdate } from '../shared/update-text';
+import type { UpdateStatus } from '../shared/types';
 
 export const KIND_META: Record<SessionKind, { label: string; icon: IconName }> = {
   ssh: { label: 'SSH', icon: 'terminal' },
@@ -444,6 +446,37 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
       showEditor('');
     });
 
+    // Updates: status text, a "Check now" button and a button to restart into a downloaded version.
+    const updateText = h('div', { class: 'd' });
+    const checkBtn = btn('Check now', '', async () => {
+      checkBtn.disabled = true;
+      try {
+        paintUpdate(await window.termApi.checkForUpdates());
+      } catch (e) {
+        toast('error', cleanError(e));
+      }
+    });
+    const installBtn = btn('Restart and install', 'primary', () => {
+      close();
+      document.dispatchEvent(new CustomEvent('nexterm:restart-update'));
+    });
+    const paintUpdate = (u: UpdateStatus | null) => {
+      if (!updateText.isConnected && updateText.dataset.shown) {
+        off();
+        return;
+      }
+      const v = describeUpdate(u);
+      updateText.textContent = v.text;
+      updateText.dataset.shown = '1';
+      checkBtn.hidden = !(u && u.state !== 'unsupported');
+      checkBtn.disabled = !v.canCheck;
+      installBtn.hidden = !v.canInstall;
+    };
+    const off = window.termApi.onUpdateStatus(paintUpdate);
+    paintUpdate(state.update);
+    void window.termApi.getUpdateStatus().then(paintUpdate, () => undefined);
+    const autoUpdate = toggle(s.autoUpdate, (v) => void set({ autoUpdate: v }), 'Check for updates automatically');
+
     const preview = h('div', { class: 'preview' });
     const updatePreview = () => {
       preview.style.fontFamily = `"${s.fontFamily}", "JetBrains Mono", monospace`;
@@ -472,6 +505,8 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
       h('div', { class: 'section' },
         h('div', { class: 'section-title' }, 'About'),
         h('div', { class: 'setting' }, h('div', { class: 'txt' }, h('div', { class: 't' }, 'NexTerm'), h('div', { class: 'd' }, 'Version ' + (state.version || 'unknown') + ' · MIT licence · github.com/ShubratoDn/NexTerm'))),
+        h('div', { class: 'setting' }, h('div', { class: 'txt' }, h('div', { class: 't' }, 'Updates'), updateText), h('div', { class: 'row-actions' }, checkBtn, installBtn)),
+        row('Check automatically', 'Looks for a new version when NexTerm starts and every few hours. Contacts github.com; nothing about you is sent.', autoUpdate),
       ),
     );
     foot.append(
@@ -480,6 +515,7 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
         theme.set(s.theme); font.value = s.fontFamily; size.value = String(s.fontSize); cursor.set(s.cursorStyle); blink.setAttribute('aria-checked', String(s.cursorBlink)); scroll.value = String(s.scrollback); monitorOn.setAttribute('aria-checked', String(s.monitor)); every.value = String(s.monitorInterval); uiFont.value = s.uiFontFamily; uiSize.value = String(s.uiFontSize);
         await window.termApi.clearEditor();
         showEditor('');
+        autoUpdate.setAttribute('aria-checked', String(s.autoUpdate));
       }),
       h('span', { class: 'spacer' }), btn('Done', 'primary', () => close()),
     );

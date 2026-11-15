@@ -102,6 +102,14 @@ Folder operations live in `src/main/sftp-tree.ts` (pure helpers, unit-tested) an
 - Every upload and download is planned first (total bytes and files are summed before data moves), then reports through `transfer:progress` events (main to renderer, at most about ten per second). `src/main/transfer.ts` holds the meter, which computes speed over the last three seconds so it falls to zero when a transfer stalls; the renderer shows one card per transfer (`src/renderer/transfers.ts`).
 - `sftp:stat`, `sftp:chmod` and `sftp:mkfile` back the Properties dialog and "New file". `chmod` accepts only a mode from 0 to 0777; special bits are not offered.
 
+## Updates
+
+`src/main/updater.ts` wraps `electron-updater`. An installed copy reads `resources/app-update.yml`, which tells it to look at the latest GitHub release (`ShubratoDn/NexTerm`); it downloads `latest.yml` and the setup program from there, checks the SHA-512 in `latest.yml` (a mismatch discards the download), and installs when the user restarts or quits. Checks run in the main process only; the page never makes a network request for updates.
+
+- Only the **setup program** carries `app-update.yml`. `scripts/package-win-installers.mjs` adds it to a staged copy of the app, so the portable folder and the MSI (installed per machine by an administrator) stay without it and report "cannot update itself".
+- The page sees the state through `update:status` events (`UpdateStatus`) and can ask for a check (`update:check`) or a restart into the downloaded version (`update:install`, which only works when an update is ready). `autoUpdate` in Settings turns the periodic checks off; a check started by the user always runs.
+- A release must contain the setup program, its `.blockmap` and `latest.yml`, under a tag named `v<version>` (`npm run package:win-installers` produces all three).
+
 ## IPC channels
 
 | Channel | Direction | Purpose |

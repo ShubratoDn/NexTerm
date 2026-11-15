@@ -14,6 +14,7 @@ import type {
   SftpStat,
   SftpTreeSize,
   Settings,
+  UpdateStatus,
   EditOpened,
   EditStatus,
   TransferProgress,
@@ -21,6 +22,11 @@ import type {
 } from './types';
 
 export interface TermApi {
+  /** Automatic updates: the current state, a check started by the user, and restarting into a downloaded update. */
+  getUpdateStatus(): Promise<UpdateStatus>;
+  checkForUpdates(): Promise<UpdateStatus>;
+  installUpdate(): Promise<void>;
+  onUpdateStatus(cb: (status: UpdateStatus) => void): () => void;
   /** Copies text to the system clipboard. */
   writeClipboard(text: string): Promise<void>;
   /** The text on the system clipboard ("" if there is none). */

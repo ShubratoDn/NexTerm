@@ -43,6 +43,7 @@ Working across servers, network gear and your own machine usually means a termin
 - Upload and download of files and whole folders (including drag and drop), rename, move, create file or folder, delete (with a preview when a folder is not empty)
 - Live transfer progress: size done and total, percent, speed and time left, with a file counter for folders
 - **Copy, cut and paste** files and folders (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`), within a server or from one server to another. Nothing is overwritten: a clash becomes `name (1).ext`
+- **Automatic updates** (Windows setup program): NexTerm downloads new versions in the background and offers a restart; no need to download and install again
 - **Paste files from your computer**: copy files or folders in Windows Explorer (or your Linux file manager), click the file browser and press `Ctrl+V` to upload them
 - **Edit** a remote file in a local editor (double-click, or `F4`) or **Open with…** any program. Saving there uploads the file back automatically, and NexTerm warns before overwriting a file that changed on the server in the meantime. Choose the editor in Settings → Files
 - Right-click menus for files, folders and empty space, and a **Properties** dialog with size, dates, owner and editable permissions
@@ -116,7 +117,7 @@ Pick one from the [Releases page](https://github.com/ShubratoDn/NexTerm/releases
 | `NexTerm-v0.6.0-win-x64.msi` | IT administrators. Installs for all users, for Group Policy, Intune or SCCM deployment. |
 | `NexTerm-v0.6.0-win-x64.zip` | Portable. Extract anywhere and run `NexTerm.exe`; nothing is installed. |
 
-Your sessions and settings live in `%APPDATA%\NexTerm` and are kept when you update or uninstall. The builds are not code-signed, so Windows SmartScreen may show *Windows protected your PC*; choose **More info, then Run anyway**. You can verify a download against `SHA256SUMS.txt` on the release page.
+The **setup program updates itself**: when a new version is published, NexTerm downloads it in the background and shows *Update ready* in the status bar (Settings → About has the controls). The portable zip and the MSI do not update themselves; download the new file instead. Your sessions and settings live in `%APPDATA%\NexTerm` and are kept when you update or uninstall. The builds are not code-signed, so Windows SmartScreen may show *Windows protected your PC*; choose **More info, then Run anyway**. You can verify a download against `SHA256SUMS.txt` on the release page.
 
 ### Download (Linux, 64-bit)
 
