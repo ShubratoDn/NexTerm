@@ -30,6 +30,7 @@
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
   --scrim: rgba(8, 9, 11, 0.55);
   --fs: 13px;
+  --files-fs: 13px;
   --radius: 6px;
   --titlebar-h: 40px;
   --font-ui: 'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
@@ -238,7 +239,7 @@ kbd { font: calc(var(--fs) * 0.8462) var(--font-ui); padding: 1px 5px; border-ra
 .findbar .nomatch { color: var(--danger); font-size: calc(var(--fs) * 0.9231); padding: 0 6px; }
 
 /* ---------- SFTP ---------- */
-.sftp { position: relative; width: var(--sftp-w, 340px); flex: none; display: flex; flex-direction: column; background: var(--bg-panel); border-right: 1px solid var(--border); min-width: 0; }
+.sftp { --fs: var(--files-fs); font-size: var(--fs); position: relative; width: var(--sftp-w, 340px); flex: none; display: flex; flex-direction: column; background: var(--bg-panel); border-right: 1px solid var(--border); min-width: 0; }
 .sftp-head { display: flex; align-items: center; gap: 2px; padding: 6px 6px 4px 12px; }
 .sftp-head h4 { flex: 1; margin: 0; font-size: calc(var(--fs) * 0.8462); font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-3); }
 .crumbs { display: flex; align-items: center; margin: 0 8px 6px; padding: 0 4px; height: 28px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-input); overflow: hidden; cursor: text; }

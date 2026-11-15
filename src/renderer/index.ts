@@ -16,6 +16,8 @@ import {
   isMultiExec, openLocal, openQuick, openSaved, reconnectActive, setMultiExec, toggleFiles, toggleFind,
 } from './workspace';
 import type { ImportSourceId, SessionSummary } from '../shared/types';
+import { nextZoom } from '../shared/zoom';
+import type { ZoomRegion } from '../shared/zoom';
 
 const api = window.termApi;
 const isMac = api.platform === 'darwin';
@@ -133,13 +135,44 @@ async function openSettings(): Promise<void> {
 }
 
 let zoomTimer: number | undefined;
-function zoom(delta: number | 'reset'): void {
-  const size = delta === 'reset' ? 13 : Math.max(8, Math.min(32, state.settings.fontSize + delta));
-  if (size === state.settings.fontSize) return;
-  state.settings = { ...state.settings, fontSize: size };
+/** Zooms the terminal and file browser, or (for 'interface') the whole interface with them. See shared/zoom.ts. */
+function zoomBy(delta: number | 'reset', region: ZoomRegion): void {
+  const s = state.settings;
+  const next = nextZoom({ fontSize: s.fontSize, uiFontSize: s.uiFontSize, filesFontOffset: s.filesFontOffset }, delta, region);
+  if (next.fontSize === s.fontSize && next.uiFontSize === s.uiFontSize && next.filesFontOffset === s.filesFontOffset) return;
+  state.settings = { ...s, ...next };
   applySettingsToTerminals();
   window.clearTimeout(zoomTimer);
-  zoomTimer = window.setTimeout(() => void api.setSettings({ fontSize: size }).catch(() => undefined), 400);
+  zoomTimer = window.setTimeout(() => void api.setSettings(next).catch(() => undefined), 400);
+}
+
+/** Where a zoom gesture happened: over the terminal or file browser, or anywhere else. */
+const zoomRegionOf = (el: EventTarget | null): ZoomRegion => (el instanceof Element && el.closest('.xterm, .sftp') ? 'content' : 'interface');
+
+/** Ctrl + mouse wheel (and a trackpad pinch, which arrives as a Ctrl + wheel) zooms; wheel up zooms in. */
+function initWheelZoom(): void {
+  let acc = 0;
+  let idle: number | undefined;
+  document.addEventListener(
+    'wheel',
+    (ev) => {
+      if (!ev.ctrlKey) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (document.querySelector('dialog[open]')) return; // dialogs show their own copy of the sizes
+      acc += ev.deltaMode === 1 ? ev.deltaY * 40 : ev.deltaY;
+      window.clearTimeout(idle);
+      idle = window.setTimeout(() => (acc = 0), 300);
+      const region = zoomRegionOf(ev.target);
+      // One step per notch of a mouse wheel (about 100 units); a trackpad adds up small movements.
+      while (Math.abs(acc) >= 100) {
+        const up = acc < 0;
+        acc += up ? 100 : -100;
+        zoomBy(up ? 1 : -1, region);
+      }
+    },
+    { passive: false, capture: true },
+  );
 }
 
 function setSidebarOpen(open: boolean): void {
@@ -176,8 +209,8 @@ function paletteItems(): PaletteItem[] {
     }).catch((e) => toast('error', cleanError(e)));
   }, undefined, 'Live CPU, memory, network and disk usage under SSH terminals');
   act('Toggle sidebar', 'panel-left-close', () => setSidebarOpen(!state.prefs.sidebarOpen), `${mod}+Shift+B`);
-  act('Zoom in', 'plus', () => zoom(1), `${mod}+=`);
-  act('Zoom out', 'plus', () => zoom(-1), `${mod}+-`);
+  act('Zoom in', 'plus', () => zoomBy(1, 'content'), `${mod}+=`);
+  act('Zoom out', 'plus', () => zoomBy(-1, 'content'), `${mod}+-`);
   act('Settings', 'settings', () => void openSettings());
 
   for (const s of [...state.sessions].sort((a, b) => a.name.localeCompare(b.name))) {
@@ -207,9 +240,10 @@ function handleShortcut(ev: KeyboardEvent): boolean {
   }
   if (ctrl && ev.key === 'Tab') { ev.preventDefault(); cycle(ev.shiftKey ? -1 : 1); return true; }
   if (ctrl && !ev.altKey) {
-    if (ev.key === '=' || ev.key === '+') { ev.preventDefault(); zoom(1); return true; }
-    if (ev.key === '-') { ev.preventDefault(); zoom(-1); return true; }
-    if (ev.key === '0') { ev.preventDefault(); zoom('reset'); return true; }
+    const region = zoomRegionOf(document.activeElement);
+    if (ev.key === '=' || ev.key === '+') { ev.preventDefault(); zoomBy(1, region); return true; }
+    if (ev.key === '-') { ev.preventDefault(); zoomBy(-1, region); return true; }
+    if (ev.key === '0') { ev.preventDefault(); zoomBy('reset', region); return true; }
   }
   return false;
 }
@@ -318,6 +352,7 @@ async function init(): Promise<void> {
   setSidebarOpen(state.prefs.sidebarOpen);
 
   initTransfers();
+  initWheelZoom();
   initEditing();
   initSidebar({
     newSession: () => void editSession(),

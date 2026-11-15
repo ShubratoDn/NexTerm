@@ -80,6 +80,7 @@ export function parseSettingsPatch(x: unknown): Partial<Settings> {
   }
   if (o.uiFontFamily !== undefined) out.uiFontFamily = str(o.uiFontFamily, 'uiFontFamily', 100, true);
   if (o.uiFontSize !== undefined) out.uiFontSize = int(o.uiFontSize, 'uiFontSize', 10, 20);
+  if (o.filesFontOffset !== undefined) out.filesFontOffset = int(o.filesFontOffset, 'filesFontOffset', -11, 16);
   if (o.monitor !== undefined) {
     if (typeof o.monitor !== 'boolean') throw new Error('invalid monitor setting');
     out.monitor = o.monitor;

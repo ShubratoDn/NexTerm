@@ -243,7 +243,8 @@ Your data lives in the app's data folder (`%APPDATA%\NexTerm` on Windows): `sess
 | `Ctrl+Shift+E` | Show or hide the file browser |
 | `Ctrl+Shift+F` | Find in terminal |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste (`Ctrl+C` copies when text is selected) |
-| `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Zoom in / out / reset |
+| `Ctrl` + mouse wheel, or `Ctrl+=` / `Ctrl+-` | Zoom in / out. Over (or with the keyboard focus in) the terminal or file browser, only those two zoom. Anywhere else the interface text size changes, and the terminal follows by the same amount |
+| `Ctrl+0` | Reset all text sizes |
 
 In the file browser: `Enter` open, `F4` edit, `Backspace` parent folder, `F2` rename, `Alt+Enter` properties, `Del` delete, `F5` refresh, `Ctrl+A` select all, `Ctrl+C` / `Ctrl+X` / `Ctrl+V` copy, cut and paste, `Ctrl+L` edit the path.
 

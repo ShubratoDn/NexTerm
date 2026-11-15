@@ -4,6 +4,9 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Added
+- **Zoom with Ctrl + mouse wheel** (wheel up zooms in, wheel down zooms out; a trackpad pinch works too). Over the terminal or the file browser, only those two change size. Anywhere else the interface text size changes, and the terminal follows by the same amount so everything stays in proportion. `Ctrl+=` and `Ctrl+-` behave the same way according to where the keyboard focus is, and `Ctrl+0` resets all sizes. The file browser now has its own size, kept relative to the interface size
+
 ### Fixed
 - Copying sometimes failed with "Failed to execute 'writeText' on 'Clipboard': Write permission denied". Copy and paste (terminal, file browser, Properties, server summary) now go through the application itself instead of the browser clipboard, which needed a permission the app always refuses
 

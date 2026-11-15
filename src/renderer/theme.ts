@@ -1,5 +1,6 @@
 import type { ITheme } from '@xterm/xterm';
 import type { Settings } from '../shared/types';
+import { filesFontSize } from '../shared/zoom';
 
 export type Resolved = 'dark' | 'light';
 
@@ -37,10 +38,11 @@ export function uiFontStack(name: string): string {
 }
 
 /** Applies the interface font family and size (the terminal has its own font setting). */
-export function applyUiFont(s: Pick<Settings, 'uiFontFamily' | 'uiFontSize'>): void {
+export function applyUiFont(s: Pick<Settings, 'uiFontFamily' | 'uiFontSize' | 'filesFontOffset'>): void {
   const root = document.documentElement.style;
   root.setProperty('--font-ui', uiFontStack(s.uiFontFamily));
   root.setProperty('--fs', `${s.uiFontSize}px`);
+  root.setProperty('--files-fs', `${filesFontSize(s.uiFontSize, s.filesFontOffset ?? 0)}px`);
 }
 
 export function applyTheme(pref: Settings['theme']): Resolved {

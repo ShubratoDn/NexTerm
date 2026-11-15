@@ -48,6 +48,8 @@ export interface Settings {
   uiFontFamily: string;
   /** Base size of the interface text in pixels. */
   uiFontSize: number;
+  /** Size of the file browser text relative to the interface size, in pixels (changed by zooming over it). */
+  filesFontOffset: number;
   /** Show live server statistics under SSH terminals. */
   monitor: boolean;
   /** Seconds between server statistics samples. */
@@ -68,6 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
   cursorStyle: 'bar',
   uiFontFamily: 'Inter',
   uiFontSize: 13,
+  filesFontOffset: 0,
   monitor: true,
   monitorInterval: 3,
   editorPath: '',
