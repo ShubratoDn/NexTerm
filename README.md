@@ -105,13 +105,26 @@ Working across servers, network gear and your own machine usually means a termin
 
 ### Download (Windows)
 
-1. Download `NexTerm-v0.5.0-win-x64.zip` from the [Releases page](https://github.com/ShubratoDn/NexTerm/releases).
-2. Extract the zip anywhere, for example `C:\Apps\NexTerm`.
-3. Run `NexTerm.exe`.
+Pick one from the [Releases page](https://github.com/ShubratoDn/NexTerm/releases):
 
-It is a portable folder: no installer, nothing written outside the folder except your settings in `%APPDATA%\NexTerm`. The build is not code-signed, so Windows SmartScreen may show *Windows protected your PC*; choose **More info → Run anyway**. You can verify the download against `SHA256SUMS.txt` on the release page.
+| File | For |
+|---|---|
+| `NexTerm-v0.5.0-win-x64-setup.exe` | Most people. A normal setup program: installs for your account (no administrator rights), lets you choose the folder, adds Start Menu and Desktop shortcuts and an entry in *Apps & features* for uninstalling. |
+| `NexTerm-v0.5.0-win-x64.msi` | IT administrators. Installs for all users, for Group Policy, Intune or SCCM deployment. |
+| `NexTerm-v0.5.0-win-x64.zip` | Portable. Extract anywhere and run `NexTerm.exe`; nothing is installed. |
+
+Your sessions and settings live in `%APPDATA%\NexTerm` and are kept when you update or uninstall. The builds are not code-signed, so Windows SmartScreen may show *Windows protected your PC*; choose **More info, then Run anyway**. You can verify a download against `SHA256SUMS.txt` on the release page.
 
 ### Download (Linux, 64-bit)
+
+**Debian, Ubuntu, Linux Mint and similar:** install the `.deb`. It adds NexTerm to the application menu and sets up the sandbox helper correctly.
+
+```bash
+sudo apt install ./NexTerm-v0.5.0-linux-x64.deb
+nexterm
+```
+
+**Any other distribution:** use the portable archive.
 
 ```bash
 tar -xzf NexTerm-v0.5.0-linux-x64.tar.gz
@@ -121,7 +134,7 @@ cd NexTerm-v0.5.0-linux-x64
 
 On Ubuntu 24.04 and newer (which restrict unprivileged user namespaces) Electron's sandbox may refuse to start; run `./nexterm --no-sandbox` or follow the two-line fix in the included `README.txt`. Serial ports need membership of the `dialout` group.
 
-This is a portable archive. **AppImage, `.deb` and `.rpm` packages are not published yet**: they have to be built on Linux (`npm run package:linux` on a Linux machine, VM or WSL), and the configuration for them is ready. The Linux archive has been inspected (executable, native modules, permissions) but **has not yet been run on a real Linux machine**; please report what you find.
+**`.rpm` (Fedora, openSUSE) and AppImage are not published yet.** They can only be built on Linux (`npm run package:linux` on a Linux machine, VM or WSL), and the configuration for them is ready. The `.deb` and the archive were built on Windows and checked structurally (file modes, ownership, checksums), but **have not yet been installed or run on a real Linux machine**; please report what you find.
 
 ### Requirements (building from source)
 

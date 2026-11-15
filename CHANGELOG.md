@@ -9,6 +9,10 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 ### Added
 - **Live transfer progress** for uploads and downloads of files and folders: how much has been sent of the total, percent, current speed, time left and, for several files, which file is in progress
 
+### Packaging
+- **Windows setup program** (`NexTerm-v0.5.0-win-x64-setup.exe`) and **MSI** (`NexTerm-v0.5.0-win-x64.msi`), built with `npm run package:win-installers`
+- **Debian package** (`NexTerm-v0.5.0-linux-x64.deb`), built with `npm run package:deb` (works on Windows too)
+
 ### Fixed
 - The buttons on the start screen (New session, Quick connect, Local terminal, Import connections, Command palette and the recent sessions) did nothing when clicked, because an empty layer covered them
 
