@@ -5,7 +5,7 @@ import { askConfirm, askText } from './dialogs';
 import { showMenu } from './menu';
 import type { MenuEntry } from './menu';
 import { showProperties } from './properties-dialog';
-import { cleanError, toast, withProgress } from './toast';
+import { cleanError, toast, withResult } from './toast';
 import { savePrefs, state } from './state';
 import type { SftpEntry, TreeTransferResult } from '../shared/types';
 
@@ -479,24 +479,20 @@ export class SftpPane {
       const id = this.conn();
       if (!id || entries.length === 0) return;
       if (entries.length === 1 && !entries[0].isDir) {
-        const name = entries[0].name;
-        const t = toast('busy', `Downloading ${name}…`);
+        // Progress appears in the transfer card; only the result is reported here.
         try {
-          const saved = await window.termApi.sftp.download(id, join(this.cwd, name));
-          if (saved) t.update('success', `Saved to ${saved}`);
-          else t.dismiss();
+          const saved = await window.termApi.sftp.download(id, join(this.cwd, entries[0].name));
+          if (saved) toast('success', `Saved to ${saved}`);
         } catch (e) {
-          t.update('error', cleanError(e));
+          toast('error', cleanError(e));
         }
         return;
       }
-      const t = toast('busy', entries.length === 1 ? `Downloading folder ${entries[0].name}…` : `Downloading ${entries.length} items…`);
       try {
         const r = await window.termApi.sftp.downloadMany(id, entries.map((f) => join(this.cwd, f.name)));
-        if (!r.dir) t.dismiss();
-        else t.update(r.skipped ? 'info' : 'success', `Saved ${plural(r.saved, 'file')} to ${r.dir}${r.skipped ? ` · ${r.skipped} skipped (links or unreadable items)` : ''}`, 9000);
+        if (r.dir) toast(r.skipped ? 'info' : 'success', `Saved ${plural(r.saved, 'file')} to ${r.dir}${r.skipped ? ` · ${r.skipped} skipped (links or unreadable items)` : ''}`, { ms: 9000 });
       } catch (e) {
-        t.update('error', cleanError(e));
+        toast('error', cleanError(e));
       }
     });
   }
@@ -505,7 +501,7 @@ export class SftpPane {
     return this.guard(async () => {
       const id = this.conn();
       if (!id) return;
-      const n = await withProgress('Uploading…', () => window.termApi.sftp.upload(id, dir), (c) => (c ? `Uploaded ${plural(c, 'file')}` : 'Nothing uploaded'));
+      const n = await withResult(() => window.termApi.sftp.upload(id, dir), (c) => (c ? `Uploaded ${plural(c, 'file')}` : 'Nothing uploaded'));
       if (n && dir === this.cwd) await this.load(this.cwd);
     });
   }
@@ -514,7 +510,7 @@ export class SftpPane {
     return this.guard(async () => {
       const id = this.conn();
       if (!id) return;
-      const r = await withProgress('Uploading folder…', () => window.termApi.sftp.uploadFolder(id, dir), (x) => (x.files + x.folders ? this.reportTransfer('Uploaded', x) : 'Nothing uploaded'));
+      const r = await withResult(() => window.termApi.sftp.uploadFolder(id, dir), (x) => (x.files + x.folders ? this.reportTransfer('Uploaded', x) : 'Nothing uploaded'));
       if (r && r.files + r.folders > 0 && dir === this.cwd) await this.load(this.cwd);
     });
   }
@@ -523,7 +519,7 @@ export class SftpPane {
     return this.guard(async () => {
       const id = this.conn();
       if (!id) return;
-      const r = await withProgress(`Uploading ${plural(paths.length, 'item')}…`, () => window.termApi.sftp.uploadPaths(id, this.cwd, paths), (x) => this.reportTransfer('Uploaded', x));
+      const r = await withResult(() => window.termApi.sftp.uploadPaths(id, this.cwd, paths), (x) => this.reportTransfer('Uploaded', x));
       if (r && r.files + r.folders > 0) await this.load(this.cwd);
     });
   }

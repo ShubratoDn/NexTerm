@@ -73,3 +73,13 @@ export const formatOctal = (mode: number): string => (mode & 0o7777).toString(8)
 export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
+
+/** "45 s", "3 min 20 s", "1 h 05 min": a time left, short enough for a progress line. */
+export function formatDuration(sec: number | null): string {
+  if (sec === null || !Number.isFinite(sec) || sec < 0) return '–';
+  const s = Math.round(sec);
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min ${String(s % 60).padStart(2, '0')} s`;
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`;
+}

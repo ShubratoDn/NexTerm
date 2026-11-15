@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { TermApi } from '../shared/api';
-import type { ServerStats } from '../shared/types';
+import type { ServerStats, TransferProgress } from '../shared/types';
 
 const api: TermApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
@@ -46,6 +46,11 @@ const api: TermApi = {
     const l = (_e: unknown, id: string, s: ServerStats | null) => cb(id, s);
     ipcRenderer.on('monitor:stats', l);
     return () => void ipcRenderer.removeListener('monitor:stats', l);
+  },
+  onTransfer: (cb) => {
+    const l = (_e: unknown, p: TransferProgress) => cb(p);
+    ipcRenderer.on('transfer:progress', l);
+    return () => void ipcRenderer.removeListener('transfer:progress', l);
   },
 
   sftp: {

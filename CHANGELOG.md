@@ -4,6 +4,14 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-15
+
+### Added
+- **Live transfer progress** for uploads and downloads of files and folders: how much has been sent of the total, percent, current speed, time left and, for several files, which file is in progress
+
+### Fixed
+- The buttons on the start screen (New session, Quick connect, Local terminal, Import connections, Command palette and the recent sessions) did nothing when clicked, because an empty layer covered them
+
 ## [0.4.0] - 2026-11-12
 
 ### Added

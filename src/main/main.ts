@@ -9,7 +9,8 @@ import { KnownHosts, SessionStore, SettingsStore } from './store';
 import type { ResolvedSession } from './store';
 import { openLocal, openSerial, openSsh, openTelnet } from './connections';
 import type { Conn } from './connections';
-import { assertBaseName, chmodRemote, downloadTree, joinRemote, mkfileRemote, removeTree, sftpOps, statRemote, treeSizeRemote, uniqueName, uploadTree } from './sftp';
+import { assertBaseName, chmodRemote, downloadTree, joinRemote, mkfileRemote, planLocalUpload, planRemoteDownload, removeTree, sftpOps, statRemote, treeSizeRemote, uniqueName, uploadTree } from './sftp';
+import { Transfer } from './transfer';
 import { checkSize, parseSessionInput, parseSettingsPatch } from './validate';
 import { MonitorHub } from './monitor';
 import { REGISTRY, buildPreview, detectSources, loadSource } from './importers';
@@ -28,6 +29,25 @@ const live = new Map<string, Live>();
 const dropped = new Set<string>();
 const importAllowed = new Set<string>();
 const TITLEBAR_HEIGHT = 40;
+
+/** Starts a transfer whose progress is pushed to the window that asked for it. */
+function startTransfer(e: IpcMainInvokeEvent, direction: 'upload' | 'download', title: string): Transfer {
+  return new Transfer(direction, title, (p) => {
+    if (!e.sender.isDestroyed()) e.sender.send('transfer:progress', p);
+  });
+}
+
+/** Runs a transfer and tells the window how it ended. */
+async function runTransfer<T>(t: Transfer, fn: () => Promise<T>): Promise<T> {
+  try {
+    const r = await fn();
+    t.finish();
+    return r;
+  } catch (err) {
+    t.finish((err as Error).message);
+    throw err;
+  }
+}
 
 let hub: MonitorHub;
 let sessions: SessionStore;
@@ -280,34 +300,45 @@ function registerIpc(): void {
     const remoteDir = str(dir, 'path');
     if (!Array.isArray(paths) || paths.length > 1000) throw new Error('invalid file list');
     const out: TreeTransferResult = { files: 0, folders: 0, skipped: 0 };
+    // Only files and folders the user dropped onto the window are accepted, and each registration is single-use.
+    const accepted: { local: string; kind: 'file' | 'dir' }[] = [];
     for (const p of paths) {
       const local = str(p, 'path');
-      // Only files and folders the user dropped onto the window are accepted, and each registration is single-use.
       if (!dropped.delete(local)) {
         out.skipped++;
         continue;
       }
-      let kind: 'file' | 'dir' | 'other' = 'other';
       try {
         const st = fs.lstatSync(local);
-        kind = st.isSymbolicLink() ? 'other' : st.isFile() ? 'file' : st.isDirectory() ? 'dir' : 'other';
+        if (st.isSymbolicLink()) out.skipped++;
+        else if (st.isFile()) accepted.push({ local, kind: 'file' });
+        else if (st.isDirectory()) accepted.push({ local, kind: 'dir' });
+        else out.skipped++;
       } catch {
-        /* vanished */
+        out.skipped++; // vanished
       }
-      if (kind === 'file') {
-        const name = path.basename(local);
-        assertBaseName(name);
-        await sftpOps.put(s, local, joinRemote(remoteDir, name));
-        out.files++;
-      } else if (kind === 'dir') {
-        const r = await uploadTree(s, local, remoteDir);
-        out.files += r.files;
-        out.folders += r.folders;
-        out.skipped += r.skipped;
-        out.firstError ??= r.firstError;
-      } else out.skipped++;
     }
-    return out;
+    for (const a of accepted) if (a.kind === 'file') assertBaseName(path.basename(a.local));
+    if (accepted.length === 0) return out;
+
+    const t = startTransfer(e, 'upload', accepted.length === 1 ? path.basename(accepted[0].local) : `${accepted.length} items`);
+    return runTransfer(t, async () => {
+      const plan = planLocalUpload(accepted.map((a) => a.local));
+      t.setTotals(plan.bytes, plan.files);
+      for (const a of accepted) {
+        if (a.kind === 'file') {
+          await sftpOps.put(s, a.local, joinRemote(remoteDir, path.basename(a.local)), t);
+          out.files++;
+        } else {
+          const r = await uploadTree(s, a.local, remoteDir, t);
+          out.files += r.files;
+          out.folders += r.folders;
+          out.skipped += r.skipped;
+          out.firstError ??= r.firstError;
+        }
+      }
+      return out;
+    });
   });
 
   handle('sftp:mkfile', async (e, id, p) => mkfileRemote(await getSftp(id, e.sender.id), str(p, 'path')));
@@ -324,7 +355,12 @@ function registerIpc(): void {
     const win = BrowserWindow.fromWebContents(e.sender)!;
     const r = await dialog.showOpenDialog(win, { title: 'Choose where to save the folder', properties: ['openDirectory', 'createDirectory'] });
     if (r.canceled || !r.filePaths[0]) return { files: 0, folders: 0, skipped: 0, dir: null } satisfies TreeTransferResult;
-    return downloadTree(s, remote, r.filePaths[0]);
+    const t = startTransfer(e, 'download', path.posix.basename(remote.replace(/\/+$/, '')));
+    return runTransfer(t, async () => {
+      const plan = await planRemoteDownload(s, [remote]);
+      t.setTotals(plan.bytes, plan.files);
+      return downloadTree(s, remote, r.filePaths[0], t, plan.walks.get(remote));
+    });
   });
   handle('sftp:uploadFolder', async (e, id, dir) => {
     const s = await getSftp(id, e.sender.id);
@@ -332,7 +368,12 @@ function registerIpc(): void {
     const win = BrowserWindow.fromWebContents(e.sender)!;
     const r = await dialog.showOpenDialog(win, { title: 'Choose a folder to upload', properties: ['openDirectory'] });
     if (r.canceled || !r.filePaths[0]) return { files: 0, folders: 0, skipped: 0 } satisfies TreeTransferResult;
-    return uploadTree(s, r.filePaths[0], remoteDir);
+    const t = startTransfer(e, 'upload', path.basename(r.filePaths[0]));
+    return runTransfer(t, async () => {
+      const plan = planLocalUpload([r.filePaths[0]]);
+      t.setTotals(plan.bytes, plan.files);
+      return uploadTree(s, r.filePaths[0], remoteDir, t);
+    });
   });
   handle('sftp:realpath', async (e, id, p) => sftpOps.realpath(await getSftp(id, e.sender.id), str(p, 'path')));
   handle('sftp:list', async (e, id, p) => sftpOps.list(await getSftp(id, e.sender.id), str(p, 'path')));
@@ -350,7 +391,11 @@ function registerIpc(): void {
     const win = BrowserWindow.fromWebContents(e.sender)!;
     const r = await dialog.showSaveDialog(win, { defaultPath: path.posix.basename(remotePath) });
     if (r.canceled || !r.filePath) return null;
-    await sftpOps.get(s, remotePath, r.filePath);
+    const t = startTransfer(e, 'download', path.posix.basename(remotePath));
+    await runTransfer(t, async () => {
+      t.setTotals((await sftpOps.sizeOf(s, remotePath)).size, 1);
+      await sftpOps.get(s, remotePath, r.filePath!, t);
+    });
     return r.filePath;
   });
   handle('sftp:downloadMany', async (e, id, remotes) => {
@@ -360,36 +405,44 @@ function registerIpc(): void {
     const r = await dialog.showOpenDialog(win, { title: 'Choose download folder', properties: ['openDirectory', 'createDirectory'] });
     if (r.canceled || !r.filePaths[0]) return { saved: 0, skipped: 0, dir: null };
     const dir = r.filePaths[0];
-    let saved = 0;
-    let skipped = 0;
-    for (const remote of remotes) {
-      const remotePath = str(remote, 'path');
-      const name = path.posix.basename(remotePath);
-      assertBaseName(name);
-      if (await sftpOps.isDir(s, remotePath)) {
-        const r = await downloadTree(s, remotePath, dir);
-        saved += r.files;
-        skipped += r.skipped;
-        continue;
+    const items = remotes.map((x) => str(x, 'path'));
+    for (const remotePath of items) assertBaseName(path.posix.basename(remotePath));
+    const t = startTransfer(e, 'download', items.length === 1 ? path.posix.basename(items[0]) : `${items.length} items`);
+    return runTransfer(t, async () => {
+      const plan = await planRemoteDownload(s, items);
+      t.setTotals(plan.bytes, plan.files);
+      let saved = 0;
+      let skipped = 0;
+      for (const remotePath of items) {
+        const walk = plan.walks.get(remotePath);
+        if (walk) {
+          const r = await downloadTree(s, remotePath, dir, t, walk);
+          saved += r.files;
+          skipped += r.skipped;
+          continue;
+        }
+        const name = path.posix.basename(remotePath);
+        const target = path.join(dir, uniqueName(name, (c) => fs.existsSync(path.join(dir, c))));
+        await sftpOps.get(s, remotePath, target, t);
+        saved++;
       }
-      const target = path.join(dir, uniqueName(name, (c) => fs.existsSync(path.join(dir, c))));
-      await sftpOps.get(s, remotePath, target);
-      saved++;
-    }
-    return { saved, skipped, dir };
+      return { saved, skipped, dir };
+    });
   });
   handle('sftp:upload', async (e, id, dir) => {
     const s = await getSftp(id, e.sender.id);
     const remoteDir = str(dir, 'path');
     const win = BrowserWindow.fromWebContents(e.sender)!;
     const r = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'] });
-    if (r.canceled) return 0;
-    for (const f of r.filePaths) {
-      const name = path.basename(f);
-      assertBaseName(name);
-      await sftpOps.put(s, f, joinRemote(remoteDir, name));
-    }
-    return r.filePaths.length;
+    if (r.canceled || r.filePaths.length === 0) return 0;
+    for (const f of r.filePaths) assertBaseName(path.basename(f));
+    const t = startTransfer(e, 'upload', r.filePaths.length === 1 ? path.basename(r.filePaths[0]) : `${r.filePaths.length} files`);
+    return runTransfer(t, async () => {
+      const plan = planLocalUpload(r.filePaths);
+      t.setTotals(plan.bytes, plan.files);
+      for (const f of r.filePaths) await sftpOps.put(s, f, joinRemote(remoteDir, path.basename(f)), t);
+      return r.filePaths.length;
+    });
   });
 }
 

@@ -188,7 +188,7 @@ kbd { font: calc(var(--fs) * 0.8462) var(--font-ui); padding: 1px 5px; border-ra
 
 /* ---------- Welcome ---------- */
 #welcome { display: none; overflow-y: auto; }
-#welcome.show { display: block; }
+#welcome.show { display: block; z-index: 1; } /* above the (empty) #panes layer, which would otherwise take every click */
 .welcome-inner { max-width: 640px; margin: 0 auto; padding: clamp(32px, 9vh, 90px) 32px 40px; }
 .welcome-inner .mark { display: flex; align-items: center; gap: 14px; margin-bottom: 30px; }
 .welcome-inner .mark img { width: 44px; height: 44px; }
@@ -523,3 +523,14 @@ dialog.palette[open] { animation: pop 0.12s ease-out; }
 .perm-side .octal { width: 90px; font-family: var(--font-mono); text-align: center; }
 .perm-side .sym { font-family: var(--font-mono); color: var(--text-2); }
 .props-section .hint, .modal-body > .hint { margin-top: 8px; color: var(--text-3); font-size: calc(var(--fs) * 0.9231); }
+/* ---- transfer progress card */
+.toast.transfer { align-items: flex-start; }
+.toast.transfer > .icon { color: var(--accent); }
+.toast.transfer .tr-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-bar { height: 6px; margin: 8px 0 6px; border-radius: 999px; background: var(--bg-hover); overflow: hidden; }
+.tr-fill { height: 100%; width: 0; border-radius: inherit; background: var(--accent); transition: width 0.12s linear; }
+.toast.transfer.indeterminate .tr-fill { width: 38%; animation: tr-slide 1.1s ease-in-out infinite alternate; }
+.tr-line { color: var(--text-2); font-size: calc(var(--fs) * 0.9231); font-variant-numeric: tabular-nums; }
+.tr-sub { margin-top: 2px; color: var(--text-3); font-size: calc(var(--fs) * 0.8462); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes tr-slide { from { margin-left: 0; } to { margin-left: 62%; } }
+@media (prefers-reduced-motion: reduce) { .toast.transfer.indeterminate .tr-fill { animation: none; width: 100%; opacity: 0.4; } }

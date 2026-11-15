@@ -94,6 +94,7 @@ Folder operations live in `src/main/sftp-tree.ts` (pure helpers, unit-tested) an
 - `sftp:treeSize` walks a folder for the Properties dialog and the delete confirmation. The walk is bounded (entry count, depth, time) and reports `truncated` instead of running forever.
 - `sftp:downloadTree` / `sftp:uploadFolder` / `sftp:uploadPaths` copy whole folders. Symbolic links are never followed, every remote name is checked with `isSafeName`, and a download refuses any entry whose destination would leave the chosen folder. Existing names are never overwritten.
 - `sftp:removeTree` deletes files first and folders deepest-first. It refuses `/` and top-level folders, and the renderer shows the file and folder count before asking.
+- Every upload and download is planned first (total bytes and files are summed before data moves), then reports through `transfer:progress` events (main to renderer, at most about ten per second). `src/main/transfer.ts` holds the meter, which computes speed over the last three seconds so it falls to zero when a transfer stalls; the renderer shows one card per transfer (`src/renderer/transfers.ts`).
 - `sftp:stat`, `sftp:chmod` and `sftp:mkfile` back the Properties dialog and "New file". `chmod` accepts only a mode from 0 to 0777; special bits are not offered.
 
 ## IPC channels

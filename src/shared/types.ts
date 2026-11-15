@@ -237,3 +237,22 @@ export interface TreeTransferResult {
   firstError?: string;
   dir?: string | null;
 }
+/** Live state of one file transfer, pushed from the main process while it runs. */
+export interface TransferProgress {
+  id: number;
+  direction: 'upload' | 'download';
+  /** Short description, for example "report.csv" or "3 items". */
+  title: string;
+  state: 'preparing' | 'running' | 'done' | 'error';
+  totalBytes: number;
+  doneBytes: number;
+  /** Bytes per second over the last few seconds. */
+  speed: number;
+  /** Seconds left at the current speed, or null while it is not known. */
+  etaSec: number | null;
+  filesDone: number;
+  filesTotal: number;
+  /** Name of the file being transferred right now. */
+  current: string;
+  error?: string;
+}

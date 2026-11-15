@@ -14,6 +14,7 @@ import type {
   SftpStat,
   SftpTreeSize,
   Settings,
+  TransferProgress,
   TreeTransferResult,
 } from './types';
 
@@ -54,6 +55,8 @@ export interface TermApi {
   /** Takes a sample immediately instead of waiting for the next tick. */
   monitorRefresh(connId: string): Promise<void>;
   onMonitor(cb: (connId: string, stats: ServerStats | null) => void): () => void;
+  /** Progress of uploads and downloads, pushed while they run. */
+  onTransfer(cb: (progress: TransferProgress) => void): () => void;
 
   sftp: {
     realpath(connId: string, path: string): Promise<string>;

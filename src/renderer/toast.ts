@@ -66,6 +66,18 @@ export async function withProgress<T>(message: string, task: () => Promise<T>, s
   }
 }
 
+/** Runs a task whose progress is shown elsewhere (the transfer card) and reports only how it ended. */
+export async function withResult<T>(task: () => Promise<T>, success: (r: T) => string): Promise<T | undefined> {
+  try {
+    const r = await task();
+    toast('success', success(r));
+    return r;
+  } catch (e) {
+    toast('error', cleanError(e));
+    return undefined;
+  }
+}
+
 export function cleanError(e: unknown): string {
   // Electron prefixes remote errors with "Error invoking remote method '...': Error: ".
   return ((e as Error)?.message ?? String(e)).replace(/^Error invoking remote method '[^']*': (Error: )?/, '');

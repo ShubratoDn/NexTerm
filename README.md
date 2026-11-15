@@ -41,6 +41,7 @@ Working across servers, network gear and your own machine usually means a termin
 - Password, private key (with passphrase prompt) and SSH agent authentication
 - File browser beside the terminal: breadcrumb navigation, sortable columns, multi-select, keyboard control
 - Upload and download of files and whole folders (including drag and drop), rename, move, create file or folder, delete (with a preview when a folder is not empty)
+- Live transfer progress: size done and total, percent, speed and time left, with a file counter for folders
 - Right-click menus for files, folders and empty space, and a **Properties** dialog with size, dates, owner and editable permissions
 - "Open terminal here" runs `cd` to a folder in the shell beside it
 - Adjustable interface font and size (Settings → Appearance)
@@ -104,7 +105,7 @@ Working across servers, network gear and your own machine usually means a termin
 
 ### Download (Windows)
 
-1. Download `NexTerm-v0.4.0-win-x64.zip` from the [Releases page](https://github.com/ShubratoDn/NexTerm/releases).
+1. Download `NexTerm-v0.5.0-win-x64.zip` from the [Releases page](https://github.com/ShubratoDn/NexTerm/releases).
 2. Extract the zip anywhere, for example `C:\Apps\NexTerm`.
 3. Run `NexTerm.exe`.
 
@@ -113,8 +114,8 @@ It is a portable folder: no installer, nothing written outside the folder except
 ### Download (Linux, 64-bit)
 
 ```bash
-tar -xzf NexTerm-v0.4.0-linux-x64.tar.gz
-cd NexTerm-v0.4.0-linux-x64
+tar -xzf NexTerm-v0.5.0-linux-x64.tar.gz
+cd NexTerm-v0.5.0-linux-x64
 ./nexterm
 ```
 

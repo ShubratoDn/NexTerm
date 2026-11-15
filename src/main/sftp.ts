@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { FileEntryWithStats, SFTPWrapper, Stats } from 'ssh2';
 import type { SftpEntry, SftpStat, SftpTreeSize, TreeTransferResult } from '../shared/types';
+import type { Progress } from './transfer';
 import { deletionOrder, isProtectedPath, summarizeSize, walkLocal, walkTree } from './sftp-tree';
+import type { WalkResult } from './sftp-tree';
 
 const S_IFMT = 0o170000;
 const S_IFDIR = 0o040000;
@@ -39,8 +41,51 @@ export const sftpOps = {
   rename: (s: SFTPWrapper, from: string, to: string) => p<void>((cb) => s.rename(from, to, (e) => cb(e))),
   unlink: (s: SFTPWrapper, remote: string) => p<void>((cb) => s.unlink(remote, (e) => cb(e))),
   rmdir: (s: SFTPWrapper, remote: string) => p<void>((cb) => s.rmdir(remote, (e) => cb(e))),
-  get: (s: SFTPWrapper, remote: string, local: string) => p<void>((cb) => s.fastGet(remote, local, (e) => cb(e))),
-  put: (s: SFTPWrapper, local: string, remote: string) => p<void>((cb) => s.fastPut(local, remote, (e) => cb(e))),
+  /** Size of a remote file or folder entry, as reported by the server. */
+  async sizeOf(s: SFTPWrapper, remote: string): Promise<{ isDir: boolean; size: number }> {
+    const st = await p<{ mode: number; size: number }>((cb) => s.stat(remote, cb));
+    return { isDir: (st.mode & S_IFMT) === S_IFDIR, size: st.size };
+  },
+
+  get: (s: SFTPWrapper, remote: string, local: string, prog?: Progress) =>
+    p<void>((cb) => {
+      prog?.file(path.posix.basename(remote));
+      let last = 0;
+      s.fastGet(
+        remote,
+        local,
+        {
+          step: (done) => {
+            prog?.bytes(done - last);
+            last = done;
+          },
+        },
+        (e) => {
+          if (!e) prog?.fileDone();
+          cb(e);
+        },
+      );
+    }),
+
+  put: (s: SFTPWrapper, local: string, remote: string, prog?: Progress) =>
+    p<void>((cb) => {
+      prog?.file(path.basename(local));
+      let last = 0;
+      s.fastPut(
+        local,
+        remote,
+        {
+          step: (done) => {
+            prog?.bytes(done - last);
+            last = done;
+          },
+        },
+        (e) => {
+          if (!e) prog?.fileDone();
+          cb(e);
+        },
+      );
+    }),
 };
 
 export function joinRemote(dir: string, ...names: string[]): string {
@@ -114,7 +159,7 @@ export async function treeSizeRemote(s: SFTPWrapper, remote: string): Promise<Sf
 const result = (): TreeTransferResult => ({ files: 0, folders: 0, skipped: 0 });
 
 /** Downloads a folder into `localParent`, under a name that does not overwrite anything. */
-export async function downloadTree(s: SFTPWrapper, remoteRoot: string, localParent: string): Promise<TreeTransferResult> {
+export async function downloadTree(s: SFTPWrapper, remoteRoot: string, localParent: string, prog?: Progress, walked?: WalkResult): Promise<TreeTransferResult> {
   const name = path.posix.basename(remoteRoot.replace(/\/+$/, ''));
   assertBaseName(name);
   const top = uniqueName(name, (c) => fs.existsSync(path.join(localParent, c)));
@@ -125,7 +170,7 @@ export async function downloadTree(s: SFTPWrapper, remoteRoot: string, localPare
     out.skipped++;
     out.firstError ??= (e as Error).message;
   };
-  const walk = await walkTree((d) => sftpOps.list(s, d), remoteRoot);
+  const walk = walked ?? (await walkTree((d) => sftpOps.list(s, d), remoteRoot));
   out.skipped += walk.invalid;
   const base = path.resolve(topPath) + path.sep;
   for (const it of walk.items) {
@@ -140,7 +185,7 @@ export async function downloadTree(s: SFTPWrapper, remoteRoot: string, localPare
         fs.mkdirSync(local, { recursive: true });
         out.folders++;
       } else {
-        await sftpOps.get(s, it.path, local);
+        await sftpOps.get(s, it.path, local, prog);
         out.files++;
       }
     } catch (e) {
@@ -152,7 +197,7 @@ export async function downloadTree(s: SFTPWrapper, remoteRoot: string, localPare
 }
 
 /** Uploads a local folder into `remoteParent`, under a name that does not overwrite anything. */
-export async function uploadTree(s: SFTPWrapper, localRoot: string, remoteParent: string): Promise<TreeTransferResult> {
+export async function uploadTree(s: SFTPWrapper, localRoot: string, remoteParent: string, prog?: Progress): Promise<TreeTransferResult> {
   const name = path.basename(localRoot);
   assertBaseName(name);
   const existing = new Set((await sftpOps.list(s, remoteParent)).map((e) => e.name));
@@ -175,7 +220,7 @@ export async function uploadTree(s: SFTPWrapper, localRoot: string, remoteParent
   }
   for (const f of tree.files) {
     try {
-      await sftpOps.put(s, f.abs, joinRemote(remoteRoot, ...f.rel.split('/')));
+      await sftpOps.put(s, f.abs, joinRemote(remoteRoot, ...f.rel.split('/')), prog);
       out.files++;
     } catch (e) {
       note(e);
@@ -219,4 +264,55 @@ export async function removeTree(s: SFTPWrapper, remoteRoot: string): Promise<Tr
     note(e);
   }
   return out;
+}
+/** Total size and file count of local files and folders, for the progress bar. Links and unreadable items are not counted. */
+export function planLocalUpload(paths: string[]): { bytes: number; files: number } {
+  let bytes = 0;
+  let files = 0;
+  for (const p of paths) {
+    try {
+      const st = fs.lstatSync(p);
+      if (st.isSymbolicLink()) continue;
+      if (st.isFile()) {
+        bytes += st.size;
+        files++;
+      } else if (st.isDirectory()) {
+        for (const f of walkLocal(p).files) {
+          try {
+            bytes += fs.statSync(f.abs).size;
+            files++;
+          } catch {
+            /* vanished */
+          }
+        }
+      }
+    } catch {
+      /* vanished */
+    }
+  }
+  return { bytes, files };
+}
+
+/** Total size and file count of remote files and folders, plus the folder walks so they need not be repeated. */
+export async function planRemoteDownload(s: SFTPWrapper, remotes: string[]): Promise<{ bytes: number; files: number; walks: Map<string, WalkResult> }> {
+  let bytes = 0;
+  let files = 0;
+  const walks = new Map<string, WalkResult>();
+  for (const r of remotes) {
+    const st = await sftpOps.sizeOf(s, r);
+    if (!st.isDir) {
+      bytes += st.size;
+      files++;
+      continue;
+    }
+    const walk = await walkTree((d) => sftpOps.list(s, d), r);
+    walks.set(r, walk);
+    for (const it of walk.items) {
+      if (!it.entry.isDir && !it.entry.isLink) {
+        bytes += it.entry.size;
+        files++;
+      }
+    }
+  }
+  return { bytes, files, walks };
 }
