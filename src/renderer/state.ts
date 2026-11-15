@@ -39,6 +39,8 @@ export const state = {
   prefs: loadPrefs(),
   /** Connection lists found on this computer (MobaXterm, PuTTY, OpenSSH). */
   importSources: [] as ImportSourceInfo[],
+  /** Version of the application, for example "0.6.0". Empty until it has been read. */
+  version: '',
 };
 
 export function savePrefs(): void {

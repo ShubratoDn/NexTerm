@@ -111,9 +111,9 @@ Pick one from the [Releases page](https://github.com/ShubratoDn/NexTerm/releases
 
 | File | For |
 |---|---|
-| `NexTerm-v0.5.0-win-x64-setup.exe` | Most people. A normal setup program: installs for your account (no administrator rights), lets you choose the folder, adds Start Menu and Desktop shortcuts and an entry in *Apps & features* for uninstalling. |
-| `NexTerm-v0.5.0-win-x64.msi` | IT administrators. Installs for all users, for Group Policy, Intune or SCCM deployment. |
-| `NexTerm-v0.5.0-win-x64.zip` | Portable. Extract anywhere and run `NexTerm.exe`; nothing is installed. |
+| `NexTerm-v0.6.0-win-x64-setup.exe` | Most people. A normal setup program: installs for your account (no administrator rights), lets you choose the folder, adds Start Menu and Desktop shortcuts and an entry in *Apps & features* for uninstalling. |
+| `NexTerm-v0.6.0-win-x64.msi` | IT administrators. Installs for all users, for Group Policy, Intune or SCCM deployment. |
+| `NexTerm-v0.6.0-win-x64.zip` | Portable. Extract anywhere and run `NexTerm.exe`; nothing is installed. |
 
 Your sessions and settings live in `%APPDATA%\NexTerm` and are kept when you update or uninstall. The builds are not code-signed, so Windows SmartScreen may show *Windows protected your PC*; choose **More info, then Run anyway**. You can verify a download against `SHA256SUMS.txt` on the release page.
 
@@ -122,15 +122,15 @@ Your sessions and settings live in `%APPDATA%\NexTerm` and are kept when you upd
 **Debian, Ubuntu, Linux Mint and similar:** install the `.deb`. It adds NexTerm to the application menu and sets up the sandbox helper correctly.
 
 ```bash
-sudo apt install ./NexTerm-v0.5.0-linux-x64.deb
+sudo apt install ./NexTerm-v0.6.0-linux-x64.deb
 nexterm
 ```
 
 **Any other distribution:** use the portable archive.
 
 ```bash
-tar -xzf NexTerm-v0.5.0-linux-x64.tar.gz
-cd NexTerm-v0.5.0-linux-x64
+tar -xzf NexTerm-v0.6.0-linux-x64.tar.gz
+cd NexTerm-v0.6.0-linux-x64
 ./nexterm
 ```
 

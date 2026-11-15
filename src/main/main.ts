@@ -175,6 +175,7 @@ function registerIpc(): void {
       return fn(e, ...a);
     });
 
+  handle('app:version', () => app.getVersion());
   handle('sessions:list', () => sessions.list());
   handle('sessions:save', (_e, input) => sessions.save(parseSessionInput(input)));
   handle('sessions:delete', (_e, id) => sessions.delete(str(id, 'id')));

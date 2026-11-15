@@ -539,3 +539,7 @@ dialog.palette[open] { animation: pop 0.12s ease-out; }
 .sftp-row.cut { opacity: 0.45; }
 .row-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .editor-path { margin-top: 4px; word-break: break-all; font-family: var(--font-mono, monospace); color: var(--text-2); }
+
+/* ---- version shown in the status bar and on the start screen */
+.welcome-inner h1 .ver { margin-left: 10px; font-size: calc(var(--fs) * 0.9231); font-weight: 500; color: var(--text-3); letter-spacing: 0; }
+#statusbar .item.version { color: var(--text-3); }

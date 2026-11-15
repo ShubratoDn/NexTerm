@@ -5,6 +5,7 @@ import type { IconName } from './icons';
 import { defaultPort, parseQuickTarget } from '../shared/quick';
 import type { AuthMethod, SessionInput, SessionKind, SessionSummary, Settings } from '../shared/types';
 import { DEFAULT_SETTINGS } from '../shared/types';
+import { state } from './state';
 
 export const KIND_META: Record<SessionKind, { label: string; icon: IconName }> = {
   ssh: { label: 'SSH', icon: 'terminal' },
@@ -467,6 +468,10 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
         h('div', { class: 'section-title' }, 'Server status'),
         row('Show the status bar', 'Live CPU, memory, network, uptime and disk usage under SSH terminals. Reads /proc over a separate channel; nothing is installed on the server.', monitorOn),
         row('Refresh', 'Only the tab you are looking at is sampled.', every),
+      ),
+      h('div', { class: 'section' },
+        h('div', { class: 'section-title' }, 'About'),
+        h('div', { class: 'setting' }, h('div', { class: 'txt' }, h('div', { class: 't' }, 'NexTerm'), h('div', { class: 'd' }, 'Version ' + (state.version || 'unknown') + ' · MIT licence · github.com/ShubratoDn/NexTerm'))),
       ),
     );
     foot.append(

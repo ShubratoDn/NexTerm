@@ -21,6 +21,8 @@ import type {
 } from './types';
 
 export interface TermApi {
+  /** The version of this NexTerm, for example "0.6.0". */
+  getVersion(): Promise<string>;
   listSessions(): Promise<SessionSummary[]>;
   saveSession(input: SessionInput): Promise<SessionSummary>;
   deleteSession(id: string): Promise<void>;

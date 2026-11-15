@@ -3,6 +3,7 @@ import type { TermApi } from '../shared/api';
 import type { EditStatus, ServerStats, TransferProgress } from '../shared/types';
 
 const api: TermApi = {
+  getVersion: () => ipcRenderer.invoke('app:version'),
   listSessions: () => ipcRenderer.invoke('sessions:list'),
   saveSession: (s) => ipcRenderer.invoke('sessions:save', s),
   deleteSession: (id) => ipcRenderer.invoke('sessions:delete', id),

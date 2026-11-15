@@ -249,7 +249,7 @@ function renderWelcome(): void {
 
   el.replaceChildren(
     h('div', { class: 'welcome-inner' },
-      h('div', { class: 'mark' }, h('img', { src: 'icon.svg', alt: '', width: 44, height: 44 }), h('div', {}, h('h1', {}, 'NexTerm'), h('p', { class: 'tag' }, 'SSH, SFTP, Telnet, serial and local terminals in one window'))),
+      h('div', { class: 'mark' }, h('img', { src: 'icon.svg', alt: '', width: 44, height: 44 }), h('div', {}, h('h1', {}, 'NexTerm', state.version ? h('span', { class: 'ver' }, `v${state.version}`) : null), h('p', { class: 'tag' }, 'SSH, SFTP, Telnet, serial and local terminals in one window'))),
       onboard,
       h('h3', {}, 'Start'),
       h('div', { class: 'action-list' },
@@ -286,7 +286,7 @@ function renderStatus(): void {
 
   const bar = $('statusbar');
   bar.replaceChildren();
-  put(bar, left, h('span', { class: 'spacer' }), mx, t && t.kind !== 'sftp' && h('span', { class: 'item' }, `${t.term.cols} × ${t.term.rows}`), h('span', { class: 'item' }, 'UTF-8'));
+  put(bar, left, h('span', { class: 'spacer' }), mx, t && t.kind !== 'sftp' && h('span', { class: 'item' }, `${t.term.cols} × ${t.term.rows}`), h('span', { class: 'item' }, 'UTF-8'), state.version ? h('span', { class: 'item version', title: 'NexTerm version' }, `v${state.version}`) : null);
 }
 
 /* ------------------------------------------------------------------ bootstrap */
@@ -304,6 +304,7 @@ function onChange(): void {
 
 async function init(): Promise<void> {
   state.settings = await api.getSettings();
+  state.version = await api.getVersion().catch(() => '');
   applyUiFont(state.settings);
   applyTheme(state.settings.theme);
   // xterm measures glyphs once, so the bundled fonts must be ready before the first terminal opens.
