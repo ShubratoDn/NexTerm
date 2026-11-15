@@ -21,6 +21,10 @@ import type {
 } from './types';
 
 export interface TermApi {
+  /** Copies text to the system clipboard. */
+  writeClipboard(text: string): Promise<void>;
+  /** The text on the system clipboard ("" if there is none). */
+  readClipboard(): Promise<string>;
   /** The version of this NexTerm, for example "0.6.0". */
   getVersion(): Promise<string>;
   listSessions(): Promise<SessionSummary[]>;

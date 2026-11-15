@@ -2,6 +2,7 @@ import { h, put } from './dom';
 import { icon } from './icons';
 import type { IconName } from './icons';
 import { toast } from './toast';
+import { copyToClipboard } from './clipboard';
 import { formatBytes, formatKb, formatRate, formatUptime, levelFor } from '../shared/format';
 import type { ServerStats } from '../shared/types';
 
@@ -235,7 +236,7 @@ export class MonitorBar {
       h('div', { class: 'mbp-title' }, h('strong', {}, s.host || 'Server'), h('div', { class: 'sub' }, [s.os, s.kernel, s.arch].filter(Boolean).join(' · '))),
       h('span', { class: 'spacer' }),
       tool('refresh-cw', 'Refresh now', () => { const id = this.getConn(); if (id) void window.termApi.monitorRefresh(id); }),
-      tool('copy', 'Copy a text summary', () => { void navigator.clipboard.writeText(this.summary(s)); toast('success', 'Server summary copied'); }),
+      tool('copy', 'Copy a text summary', () => { void copyToClipboard(this.summary(s)).then((ok) => ok && toast('success', 'Server summary copied')); }),
       tool('x', 'Close', () => this.closePanel()));
 
     const card = (title: string, ic: IconName, ...children: (Node | null)[]) => {

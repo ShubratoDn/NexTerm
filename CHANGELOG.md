@@ -4,6 +4,9 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Fixed
+- Copying sometimes failed with "Failed to execute 'writeText' on 'Clipboard': Write permission denied". Copy and paste (terminal, file browser, Properties, server summary) now go through the application itself instead of the browser clipboard, which needed a permission the app always refuses
+
 ## [0.6.0] - 2026-11-15
 
 ### Added

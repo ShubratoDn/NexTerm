@@ -6,6 +6,7 @@ import { showMenu } from './menu';
 import type { MenuEntry } from './menu';
 import { showProperties } from './properties-dialog';
 import { cleanError, toast, withResult } from './toast';
+import { copyToClipboard } from './clipboard';
 import { savePrefs, state } from './state';
 import type { SftpEntry, TreeTransferResult } from '../shared/types';
 
@@ -525,7 +526,7 @@ export class SftpPane {
     if (!id || sel.length === 0) return;
     fileClip = { connId: id, paths: sel.map((e) => join(this.cwd, e.name)), cut };
     // The paths also go to the system clipboard as text, so they can be pasted into a terminal or a note.
-    void navigator.clipboard.writeText(fileClip.paths.join('\n')).catch(() => undefined);
+    void window.termApi.writeClipboard(fileClip.paths.join('\n')).catch(() => undefined);
     this.paintSelection();
     const what = sel.length === 1 ? `“${sel[0].name}”` : plural(sel.length, 'item');
     toast('info', `${cut ? 'Cut' : 'Copied'} ${what}. Open a folder, even on another server, and choose Paste.`, { ms: 3500 });
@@ -561,8 +562,7 @@ export class SftpPane {
   }
 
   private copyText(text: string, message: string): void {
-    void navigator.clipboard.writeText(text);
-    toast('success', message);
+    void copyToClipboard(text).then((ok) => ok && toast('success', message));
   }
 
   private reportTransfer(verb: string, r: TreeTransferResult): string {

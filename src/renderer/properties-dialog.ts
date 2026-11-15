@@ -3,6 +3,7 @@ import { icon } from './icons';
 import type { IconName } from './icons';
 import { btn, modal } from './dialogs';
 import { cleanError, toast } from './toast';
+import { copyToClipboard } from './clipboard';
 import { formatBytes, formatOctal, modeToSymbolic, parseOctalMode } from '../shared/format';
 import type { SftpEntry, SftpStat, SftpTreeSize } from '../shared/types';
 
@@ -113,8 +114,7 @@ export function showProperties(connId: string, targets: PropertiesTarget[], onCh
       // Path with a copy button
       const copy = h('button', { class: 'icon-btn', type: 'button', title: 'Copy path', 'aria-label': 'Copy path' }, icon('copy', 14));
       copy.addEventListener('click', () => {
-        void navigator.clipboard.writeText(st.path);
-        toast('success', 'Path copied');
+        void copyToClipboard(st.path).then((ok) => ok && toast('success', 'Path copied'));
       });
 
       // Permissions: nine checkboxes and an octal box that stay in sync

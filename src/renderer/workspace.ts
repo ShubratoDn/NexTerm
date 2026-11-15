@@ -8,6 +8,7 @@ import { showMenu } from './menu';
 import { SftpPane } from './sftp-pane';
 import { MonitorBar } from './monitor-bar';
 import { cleanError, toast } from './toast';
+import { copyToClipboard, readFromClipboard } from './clipboard';
 import { shellQuote } from '../shared/format';
 import { applyTheme, applyUiFont, fontStack, resolveTheme, termTheme } from './theme';
 import { describeSession, emitChange, savePrefs, state, touchRecent } from './state';
@@ -337,16 +338,16 @@ function wireTerminal(tab: Tab, host: HTMLElement): void {
   term.attachCustomKeyEventHandler((ev) => {
     if (ev.type !== 'keydown') return true;
     if (ev.ctrlKey && !ev.shiftKey && !ev.altKey && ev.code === 'KeyC' && term.hasSelection()) {
-      void navigator.clipboard.writeText(term.getSelection());
+      void copyToClipboard(term.getSelection());
       term.clearSelection();
       return false;
     }
     if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyC') {
-      if (term.hasSelection()) void navigator.clipboard.writeText(term.getSelection());
+      if (term.hasSelection()) void copyToClipboard(term.getSelection());
       return false;
     }
     if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyV') {
-      void navigator.clipboard.readText().then((t) => term.paste(t));
+      void readFromClipboard().then((t) => t && term.paste(t));
       return false;
     }
     if (hooks.key?.(ev)) return false;
@@ -357,8 +358,8 @@ function wireTerminal(tab: Tab, host: HTMLElement): void {
     ev.preventDefault();
     const sel = term.hasSelection();
     showMenu(ev.clientX, ev.clientY, [
-      { label: 'Copy', icon: 'copy', shortcut: 'Ctrl+Shift+C', disabled: !sel, run: () => void navigator.clipboard.writeText(term.getSelection()) },
-      { label: 'Paste', icon: 'clipboard-paste', shortcut: 'Ctrl+Shift+V', run: () => void navigator.clipboard.readText().then((t) => term.paste(t)) },
+      { label: 'Copy', icon: 'copy', shortcut: 'Ctrl+Shift+C', disabled: !sel, run: () => void copyToClipboard(term.getSelection()) },
+      { label: 'Paste', icon: 'clipboard-paste', shortcut: 'Ctrl+Shift+V', run: () => void readFromClipboard().then((t) => t && term.paste(t)) },
       { label: 'Select all', run: () => term.selectAll() },
       'sep',
       { label: 'Find…', icon: 'search', shortcut: 'Ctrl+Shift+F', run: () => toggleFind(tab, true) },

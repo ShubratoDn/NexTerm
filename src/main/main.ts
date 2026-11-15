@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell, webContents } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, shell, webContents } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -176,6 +176,12 @@ function registerIpc(): void {
     });
 
   handle('app:version', () => app.getVersion());
+  // The page may not use navigator.clipboard (it needs a permission that is always denied here), so copy and paste go through here.
+  handle('clipboard:write', (_e, text) => {
+    if (typeof text !== 'string' || text.length > 20_000_000) throw new Error('invalid clipboard text');
+    clipboard.writeText(text);
+  });
+  handle('clipboard:read', () => clipboard.readText());
   handle('sessions:list', () => sessions.list());
   handle('sessions:save', (_e, input) => sessions.save(parseSessionInput(input)));
   handle('sessions:delete', (_e, id) => sessions.delete(str(id, 'id')));
