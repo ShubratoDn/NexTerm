@@ -43,6 +43,7 @@ Working across servers, network gear and your own machine usually means a termin
 - Upload and download of files and whole folders (including drag and drop), rename, move, create file or folder, delete (with a preview when a folder is not empty)
 - Live transfer progress: size done and total, percent, speed and time left, with a file counter for folders
 - **Copy, cut and paste** files and folders (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`), within a server or from one server to another. Nothing is overwritten: a clash becomes `name (1).ext`
+- **Paste files from your computer**: copy files or folders in Windows Explorer (or your Linux file manager), click the file browser and press `Ctrl+V` to upload them
 - **Edit** a remote file in a local editor (double-click, or `F4`) or **Open with…** any program. Saving there uploads the file back automatically, and NexTerm warns before overwriting a file that changed on the server in the meantime. Choose the editor in Settings → Files
 - Right-click menus for files, folders and empty space, and a **Properties** dialog with size, dates, owner and editable permissions
 - "Open terminal here" runs `cd` to a folder in the shell beside it

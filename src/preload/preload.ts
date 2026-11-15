@@ -66,6 +66,7 @@ const api: TermApi = {
 
   sftp: {
     edit: (id, p, mode) => ipcRenderer.invoke('sftp:edit', id, p, mode),
+    pasteFiles: (id, dir) => ipcRenderer.invoke('sftp:pasteFiles', id, dir),
     copy: (from, paths, to, dir, move) => ipcRenderer.invoke('sftp:copy', from, paths, to, dir, move),
     realpath: (id, p) => ipcRenderer.invoke('sftp:realpath', id, p),
     list: (id, p) => ipcRenderer.invoke('sftp:list', id, p),

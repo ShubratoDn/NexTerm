@@ -81,6 +81,11 @@ export interface TermApi {
      * (refused for types that would run), 'choose' = ask which program to use. Resolves with null if cancelled.
      */
     edit(connId: string, remotePath: string, mode: 'edit' | 'default' | 'choose'): Promise<EditOpened | null>;
+    /**
+     * Uploads the files and folders that were copied in the system's file manager (for example Windows Explorer).
+     * Resolves with null if the system clipboard holds no files.
+     */
+    pasteFiles(connId: string, remoteDir: string): Promise<TreeTransferResult | null>;
     /** Copies or moves files and folders, within one server or from one connection to another. Never overwrites. */
     copy(fromConnId: string, remotePaths: string[], toConnId: string, remoteDir: string, move: boolean): Promise<TreeTransferResult>;
     realpath(connId: string, path: string): Promise<string>;

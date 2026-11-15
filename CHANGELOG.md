@@ -5,6 +5,9 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 ## [Unreleased]
 
 ### Added
+- **Paste files copied in Windows Explorer** (or in a Linux file manager) into the file browser: copy files or folders on your computer, then `Ctrl+V` or right-click, Paste, uploads them, with the usual progress card. Existing server files are never replaced; a name that is taken becomes `name (1).ext`. Files copied inside NexTerm are still pasted on the server, and whichever you copied last wins
+
+### Added
 - **Zoom with Ctrl + mouse wheel** (wheel up zooms in, wheel down zooms out; a trackpad pinch works too). Over the terminal or the file browser, only those two change size. Anywhere else the interface text size changes, and the terminal follows by the same amount so everything stays in proportion. `Ctrl+=` and `Ctrl+-` behave the same way according to where the keyboard focus is, and `Ctrl+0` resets all sizes. The file browser now has its own size, kept relative to the interface size
 
 ### Fixed

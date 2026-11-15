@@ -6,7 +6,7 @@ import { showMenu } from './menu';
 import type { MenuEntry } from './menu';
 import { showProperties } from './properties-dialog';
 import { cleanError, toast, withResult } from './toast';
-import { copyToClipboard } from './clipboard';
+import { copyToClipboard, readFromClipboard } from './clipboard';
 import { savePrefs, state } from './state';
 import type { SftpEntry, TreeTransferResult } from '../shared/types';
 
@@ -42,6 +42,8 @@ interface FileClip {
   /** Full remote paths. */
   paths: string[];
   cut: boolean;
+  /** The text that was put on the system clipboard together with this copy. */
+  text: string;
 }
 let fileClip: FileClip | null = null;
 
@@ -393,7 +395,7 @@ export class SftpPane {
       'sep',
       { label: 'Copy', icon: 'copy', shortcut: 'Ctrl+C', run: () => this.copySelection(false) },
       { label: 'Cut', icon: 'scissors', shortcut: 'Ctrl+X', run: () => this.copySelection(true) },
-      { label: folder ? 'Paste into folder' : 'Paste', icon: 'clipboard-paste', shortcut: 'Ctrl+V', disabled: !fileClip, run: () => void this.paste(folder ?? this.cwd) },
+      { label: folder ? 'Paste into folder' : 'Paste', icon: 'clipboard-paste', shortcut: 'Ctrl+V', run: () => void this.paste(folder ?? this.cwd) },
     );
 
     if (folder) {
@@ -422,7 +424,7 @@ export class SftpPane {
 
   private backgroundMenu(x: number, y: number): void {
     const items: MenuEntry[] = [
-      { label: 'Paste', icon: 'clipboard-paste', shortcut: 'Ctrl+V', disabled: !fileClip, run: () => void this.paste() },
+      { label: 'Paste', icon: 'clipboard-paste', shortcut: 'Ctrl+V', run: () => void this.paste() },
       'sep',
       { label: 'New folder…', icon: 'folder-plus', run: () => void this.newFolder() },
       { label: 'New file…', icon: 'file', run: () => void this.newFile() },
@@ -524,20 +526,51 @@ export class SftpPane {
     const id = this.conn();
     const sel = this.selectedEntries();
     if (!id || sel.length === 0) return;
-    fileClip = { connId: id, paths: sel.map((e) => join(this.cwd, e.name)), cut };
-    // The paths also go to the system clipboard as text, so they can be pasted into a terminal or a note.
-    void window.termApi.writeClipboard(fileClip.paths.join('\n')).catch(() => undefined);
+    const paths = sel.map((e) => join(this.cwd, e.name));
+    // The paths also go to the system clipboard as text, so they can be pasted into a terminal or a note. Keeping a copy
+    // of that text tells a later paste whether the clipboard still holds this copy or something newer.
+    fileClip = { connId: id, paths, cut, text: paths.join('\n') };
+    void window.termApi.writeClipboard(fileClip.text).catch(() => undefined);
     this.paintSelection();
     const what = sel.length === 1 ? `“${sel[0].name}”` : plural(sel.length, 'item');
     toast('info', `${cut ? 'Cut' : 'Copied'} ${what}. Open a folder, even on another server, and choose Paste.`, { ms: 3500 });
   }
 
-  /** Pastes what was copied or cut into `dir`. Nothing is overwritten: a clash gets a new name such as “a (1).txt”. */
+  /**
+   * Pastes into `dir`. Two kinds of clipboard are understood: files copied inside NexTerm (copied or moved on the
+   * servers), and files copied in the computer's own file manager (uploaded). Nothing is overwritten: a clash gets a
+   * new name such as “a (1).txt”.
+   */
   private paste(dir = this.cwd): Promise<void> {
     return this.guard(async () => {
       const id = this.conn();
-      const clip = fileClip;
-      if (!id || !clip) return;
+      if (!id) return;
+      let clip = fileClip;
+      // If the clipboard still holds the text of our own copy, nothing newer was copied. Otherwise look for files that
+      // were copied in the file manager (this asks the operating system and takes about a second).
+      if (!clip || (await readFromClipboard()) !== clip.text) {
+        const busy = toast('busy', 'Reading the clipboard…');
+        let uploaded: TreeTransferResult | null = null;
+        try {
+          uploaded = await window.termApi.sftp.pasteFiles(id, dir);
+        } catch (e) {
+          busy.dismiss();
+          toast('error', cleanError(e));
+          return;
+        }
+        busy.dismiss();
+        if (uploaded) {
+          fileClip = null; // what was copied inside NexTerm is older than these files
+          toast(uploaded.skipped && uploaded.files + uploaded.folders === 0 ? 'error' : 'success', this.reportTransfer('Uploaded', uploaded));
+          await this.load(this.cwd);
+          return;
+        }
+      }
+      clip = fileClip;
+      if (!clip) {
+        toast('info', 'Nothing to paste. Copy files in NexTerm, or in your computer’s file manager, first.');
+        return;
+      }
       const r = await withResult(
         () => window.termApi.sftp.copy(clip.connId, clip.paths, id, dir, clip.cut),
         (x) => (x.files + x.folders === 0 && !x.skipped ? 'Nothing to move: the items are already in this folder.' : this.reportTransfer(clip.cut ? 'Moved' : 'Copied', x)),

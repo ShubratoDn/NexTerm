@@ -13,6 +13,7 @@ import { assertBaseName, chmodRemote, downloadTree, joinRemote, mkfileRemote, pl
 import { Transfer } from './transfer';
 import { EditManager, validateProgram } from './editor';
 import { copyItems } from './sftp-copy';
+import { readClipboardFiles } from './os-clipboard';
 import { checkSize, parseSessionInput, parseSettingsPatch } from './validate';
 import { MonitorHub } from './monitor';
 import { REGISTRY, buildPreview, detectSources, loadSource } from './importers';
@@ -168,6 +169,60 @@ async function openConnection(e: IpcMainInvokeEvent, req: OpenRequest): Promise<
   return { connId, title, sftp: session.kind === 'ssh' || session.kind === 'sftp' };
 }
 
+/** Uploads local files and folders to `remoteDir`. `allow` decides which of the paths may be used. Links are skipped. */
+async function uploadLocalPaths(
+  e: IpcMainInvokeEvent,
+  s: Awaited<ReturnType<typeof getSftp>>,
+  remoteDir: string,
+  paths: string[],
+  allow: (local: string) => boolean,
+  /** Give a file a new name instead of replacing a file of the same name on the server. */
+  keepExisting = false,
+): Promise<TreeTransferResult> {
+  const out: TreeTransferResult = { files: 0, folders: 0, skipped: 0 };
+  const accepted: { local: string; kind: 'file' | 'dir' }[] = [];
+  for (const local of paths) {
+    if (!allow(local)) {
+      out.skipped++;
+      continue;
+    }
+    try {
+      const st = fs.lstatSync(local);
+      if (st.isSymbolicLink()) out.skipped++;
+      else if (st.isFile()) accepted.push({ local, kind: 'file' });
+      else if (st.isDirectory()) accepted.push({ local, kind: 'dir' });
+      else out.skipped++;
+    } catch {
+      out.skipped++; // vanished
+    }
+  }
+  for (const a of accepted) if (a.kind === 'file') assertBaseName(path.basename(a.local));
+  if (accepted.length === 0) return out;
+
+  const t = startTransfer(e, 'upload', accepted.length === 1 ? path.basename(accepted[0].local) : `${accepted.length} items`);
+  return runTransfer(t, async () => {
+    const plan = planLocalUpload(accepted.map((a) => a.local));
+    t.setTotals(plan.bytes, plan.files);
+    const taken = keepExisting ? new Set((await sftpOps.list(s, remoteDir)).map((x) => x.name)) : null;
+    for (const a of accepted) {
+      if (a.kind === 'file') {
+        const base = path.basename(a.local);
+        const name = taken ? uniqueName(base, (c) => taken.has(c)) : base;
+        taken?.add(name);
+        await sftpOps.put(s, a.local, joinRemote(remoteDir, name), t);
+        out.files++;
+      } else {
+        const r = await uploadTree(s, a.local, remoteDir, t);
+        out.files += r.files;
+        out.folders += r.folders;
+        out.skipped += r.skipped;
+        out.firstError ??= r.firstError;
+      }
+    }
+    return out;
+  });
+}
+
 function registerIpc(): void {
   const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) =>
     ipcMain.handle(ch, async (e, ...a) => {
@@ -307,48 +362,19 @@ function registerIpc(): void {
 
   handle('sftp:uploadPaths', async (e, id, dir, paths) => {
     const s = await getSftp(id, e.sender.id);
-    const remoteDir = str(dir, 'path');
     if (!Array.isArray(paths) || paths.length > 1000) throw new Error('invalid file list');
-    const out: TreeTransferResult = { files: 0, folders: 0, skipped: 0 };
     // Only files and folders the user dropped onto the window are accepted, and each registration is single-use.
-    const accepted: { local: string; kind: 'file' | 'dir' }[] = [];
-    for (const p of paths) {
-      const local = str(p, 'path');
-      if (!dropped.delete(local)) {
-        out.skipped++;
-        continue;
-      }
-      try {
-        const st = fs.lstatSync(local);
-        if (st.isSymbolicLink()) out.skipped++;
-        else if (st.isFile()) accepted.push({ local, kind: 'file' });
-        else if (st.isDirectory()) accepted.push({ local, kind: 'dir' });
-        else out.skipped++;
-      } catch {
-        out.skipped++; // vanished
-      }
-    }
-    for (const a of accepted) if (a.kind === 'file') assertBaseName(path.basename(a.local));
-    if (accepted.length === 0) return out;
+    return uploadLocalPaths(e, s, str(dir, 'path'), paths.map((p) => str(p, 'path')), (local) => dropped.delete(local));
+  });
 
-    const t = startTransfer(e, 'upload', accepted.length === 1 ? path.basename(accepted[0].local) : `${accepted.length} items`);
-    return runTransfer(t, async () => {
-      const plan = planLocalUpload(accepted.map((a) => a.local));
-      t.setTotals(plan.bytes, plan.files);
-      for (const a of accepted) {
-        if (a.kind === 'file') {
-          await sftpOps.put(s, a.local, joinRemote(remoteDir, path.basename(a.local)), t);
-          out.files++;
-        } else {
-          const r = await uploadTree(s, a.local, remoteDir, t);
-          out.files += r.files;
-          out.folders += r.folders;
-          out.skipped += r.skipped;
-          out.firstError ??= r.firstError;
-        }
-      }
-      return out;
-    });
+  // Paste files that were copied in the system's file manager (Explorer, Files...). The list is read here from the
+  // operating system's clipboard, never taken from the page. Resolves with null when the clipboard holds no files.
+  handle('sftp:pasteFiles', async (e, id, dir) => {
+    const s = await getSftp(id, e.sender.id);
+    const remoteDir = str(dir, 'path');
+    const files = await readClipboardFiles();
+    if (files.length === 0) return null;
+    return uploadLocalPaths(e, s, remoteDir, files, () => true, true);
   });
 
   // ---- open remote files in a local program (Edit / Open with); saved changes are uploaded again
