@@ -1,5 +1,6 @@
 import { $, h, put } from './dom';
 import { icon } from './icons';
+import { cleanError, toast } from './toast';
 import type { IconName } from './icons';
 import { defaultPort, parseQuickTarget } from '../shared/quick';
 import type { AuthMethod, SessionInput, SessionKind, SessionSummary, Settings } from '../shared/types';
@@ -421,6 +422,27 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
     const every = h('select', { class: 'input', 'aria-label': 'Refresh interval' }, ...INTERVALS.map((n) => h('option', { value: String(n), selected: n === s.monitorInterval }, `Every ${n} seconds`)));
     every.addEventListener('change', () => void set({ monitorInterval: Number(every.value) }));
 
+    // The editor can only be chosen through the native file chooser (main process), never typed in.
+    const editorName = h('div', { class: 'd editor-path' });
+    const showEditor = (p: string) => {
+      const dflt = window.termApi.platform === 'win32' ? 'Notepad' : window.termApi.platform === 'darwin' ? 'TextEdit' : 'the first text editor found on this computer';
+      editorName.textContent = p ? p : `Default: ${dflt}`;
+    };
+    showEditor('');
+    void window.termApi.getSettings().then((x) => showEditor(x.editorPath), () => undefined);
+    const chooseEditor = btn('Choose…', '', async () => {
+      try {
+        const p = await window.termApi.chooseEditor();
+        if (p) showEditor(p);
+      } catch (e) {
+        toast('error', cleanError(e));
+      }
+    });
+    const resetEditor = btn('Use default', 'ghost', async () => {
+      await window.termApi.clearEditor();
+      showEditor('');
+    });
+
     const preview = h('div', { class: 'preview' });
     const updatePreview = () => {
       preview.style.fontFamily = `"${s.fontFamily}", "JetBrains Mono", monospace`;
@@ -438,6 +460,10 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
         preview,
       ),
       h('div', { class: 'section' },
+        h('div', { class: 'section-title' }, 'Files'),
+        h('div', { class: 'setting' }, h('div', { class: 'txt' }, h('div', { class: 't' }, 'Editor'), h('div', { class: 'd' }, 'Used by Edit and by double-clicking a file in the file browser. Saved changes are uploaded automatically.'), editorName), h('div', { class: 'row-actions' }, chooseEditor, resetEditor)),
+      ),
+      h('div', { class: 'section' },
         h('div', { class: 'section-title' }, 'Server status'),
         row('Show the status bar', 'Live CPU, memory, network, uptime and disk usage under SSH terminals. Reads /proc over a separate channel; nothing is installed on the server.', monitorOn),
         row('Refresh', 'Only the tab you are looking at is sampled.', every),
@@ -447,6 +473,8 @@ export function settingsDialog(cur: Settings, apply: (patch: Partial<Settings>) 
       btn('Reset to defaults', 'ghost', async () => {
         await set({ ...DEFAULT_SETTINGS });
         theme.set(s.theme); font.value = s.fontFamily; size.value = String(s.fontSize); cursor.set(s.cursorStyle); blink.setAttribute('aria-checked', String(s.cursorBlink)); scroll.value = String(s.scrollback); monitorOn.setAttribute('aria-checked', String(s.monitor)); every.value = String(s.monitorInterval); uiFont.value = s.uiFontFamily; uiSize.value = String(s.uiFontSize);
+        await window.termApi.clearEditor();
+        showEditor('');
       }),
       h('span', { class: 'spacer' }), btn('Done', 'primary', () => close()),
     );

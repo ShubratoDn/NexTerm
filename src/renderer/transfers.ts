@@ -20,13 +20,13 @@ function create(p: TransferProgress): Card {
   const sub = h('div', { class: 'tr-sub' });
   const bar = h('div', { class: 'tr-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100' }, fill);
   const el = h('div', { class: 'toast transfer', role: 'status' },
-    icon(p.direction === 'upload' ? 'upload' : 'download', 18),
+    icon(p.direction === 'upload' ? 'upload' : p.direction === 'copy' ? 'copy' : 'download', 18),
     h('div', { class: 'msg' }, title, bar, line, sub));
   return { el, title, fill, line, sub };
 }
 
 function paint(c: Card, p: TransferProgress): void {
-  const verb = p.direction === 'upload' ? 'Uploading' : 'Downloading';
+  const verb = p.direction === 'upload' ? 'Uploading' : p.direction === 'copy' ? 'Copying' : 'Downloading';
   c.title.textContent = `${verb} ${p.title}`;
   const known = p.totalBytes > 0;
   const pct = known ? Math.min(100, (p.doneBytes / p.totalBytes) * 100) : 0;

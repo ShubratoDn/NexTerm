@@ -14,6 +14,8 @@ import type {
   SftpStat,
   SftpTreeSize,
   Settings,
+  EditOpened,
+  EditStatus,
   TransferProgress,
   TreeTransferResult,
 } from './types';
@@ -55,10 +57,26 @@ export interface TermApi {
   /** Takes a sample immediately instead of waiting for the next tick. */
   monitorRefresh(connId: string): Promise<void>;
   onMonitor(cb: (connId: string, stats: ServerStats | null) => void): () => void;
+  /** Changes to remote files that are open in a local program. */
+  onEditStatus(cb: (status: EditStatus) => void): () => void;
+  /** Answers a "changed on the server" warning: overwrite the server copy with the local one, or leave it. */
+  editResolve(editId: number, overwrite: boolean): Promise<void>;
+  /** Lets the user choose the program used by "Edit"; resolves with its path, or null if cancelled. */
+  chooseEditor(): Promise<string | null>;
+  /** Goes back to the system's plain text editor. */
+  clearEditor(): Promise<void>;
   /** Progress of uploads and downloads, pushed while they run. */
   onTransfer(cb: (progress: TransferProgress) => void): () => void;
 
   sftp: {
+    /**
+     * Downloads a file to a private temporary folder and opens it in a local program. Saved changes are uploaded
+     * back automatically. 'edit' = the configured editor, 'default' = the system's program for the file type
+     * (refused for types that would run), 'choose' = ask which program to use. Resolves with null if cancelled.
+     */
+    edit(connId: string, remotePath: string, mode: 'edit' | 'default' | 'choose'): Promise<EditOpened | null>;
+    /** Copies or moves files and folders, within one server or from one connection to another. Never overwrites. */
+    copy(fromConnId: string, remotePaths: string[], toConnId: string, remoteDir: string, move: boolean): Promise<TreeTransferResult>;
     realpath(connId: string, path: string): Promise<string>;
     list(connId: string, path: string): Promise<SftpEntry[]>;
     download(connId: string, remotePath: string): Promise<string | null>;

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { TermApi } from '../shared/api';
-import type { ServerStats, TransferProgress } from '../shared/types';
+import type { EditStatus, ServerStats, TransferProgress } from '../shared/types';
 
 const api: TermApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
@@ -47,6 +47,14 @@ const api: TermApi = {
     ipcRenderer.on('monitor:stats', l);
     return () => void ipcRenderer.removeListener('monitor:stats', l);
   },
+  onEditStatus: (cb) => {
+    const l = (_e: unknown, s: EditStatus) => cb(s);
+    ipcRenderer.on('edit:status', l);
+    return () => void ipcRenderer.removeListener('edit:status', l);
+  },
+  editResolve: (id, overwrite) => ipcRenderer.invoke('edit:resolve', id, overwrite),
+  chooseEditor: () => ipcRenderer.invoke('editor:choose'),
+  clearEditor: () => ipcRenderer.invoke('editor:clear'),
   onTransfer: (cb) => {
     const l = (_e: unknown, p: TransferProgress) => cb(p);
     ipcRenderer.on('transfer:progress', l);
@@ -54,6 +62,8 @@ const api: TermApi = {
   },
 
   sftp: {
+    edit: (id, p, mode) => ipcRenderer.invoke('sftp:edit', id, p, mode),
+    copy: (from, paths, to, dir, move) => ipcRenderer.invoke('sftp:copy', from, paths, to, dir, move),
     realpath: (id, p) => ipcRenderer.invoke('sftp:realpath', id, p),
     list: (id, p) => ipcRenderer.invoke('sftp:list', id, p),
     download: (id, p) => ipcRenderer.invoke('sftp:download', id, p),

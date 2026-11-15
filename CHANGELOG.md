@@ -4,6 +4,16 @@ All notable changes to NexTerm are documented here. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Added
+- **Copy, cut and paste** of files and folders in the file browser (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`, or the right-click menu), within one server or between two servers. Nothing is overwritten: a name that already exists becomes `name (1).ext`. Cut items are dimmed until pasted, and the paths are also copied to the system clipboard as text
+- **Edit** a remote file in a local editor: double-click it (or `F4`, or right-click, Edit). The file is downloaded to a private temporary folder, opened, and every time you save it there it is uploaded back automatically. If the file changed on the server in the meantime, NexTerm asks before replacing it
+- **Open with…** any program on your computer, and **Open with default app** (refused for file types that would run, such as `.exe`, `.bat`, `.ps1` or `.sh`)
+- **Editor setting** in Settings → Files: choose the program used by Edit, or keep the system text editor (Notepad, TextEdit, or the first editor found on Linux)
+- Copying shows the same live progress card as uploads and downloads
+
+### Security
+- The editor program can only be chosen through a native file chooser; the page cannot set or run one. Local copies of edited files are kept in a private folder and deleted when NexTerm closes
+
 ## [0.5.0] - 2026-11-15
 
 ### Added

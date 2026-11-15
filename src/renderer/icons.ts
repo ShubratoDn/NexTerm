@@ -43,6 +43,8 @@ import Moon from 'lucide-static/icons/moon.svg';
 import Monitor from 'lucide-static/icons/monitor.svg';
 import HardDrive from 'lucide-static/icons/hard-drive.svg';
 import ClipboardPaste from 'lucide-static/icons/clipboard-paste.svg';
+import Scissors from 'lucide-static/icons/scissors.svg';
+import ExternalLink from 'lucide-static/icons/external-link.svg';
 import Keyboard from 'lucide-static/icons/keyboard.svg';
 import RotateCw from 'lucide-static/icons/rotate-cw.svg';
 import LoaderCircle from 'lucide-static/icons/loader-circle.svg';
@@ -110,6 +112,8 @@ const RAW = {
   'monitor': Monitor,
   'hard-drive': HardDrive,
   'clipboard-paste': ClipboardPaste,
+  'scissors': Scissors,
+  'external-link': ExternalLink,
   'keyboard': Keyboard,
   'rotate-cw': RotateCw,
   'loader-circle': LoaderCircle,

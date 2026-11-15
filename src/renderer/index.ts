@@ -9,6 +9,7 @@ import { initSidebar, renderSidebar } from './sidebar';
 import { applyTheme, applyUiFont, resolveTheme } from './theme';
 import { cleanError, toast } from './toast';
 import { initTransfers } from './transfers';
+import { initEditing } from './editing';
 import { describeSession, emitChange, onStateChange, recentSessions, savePrefs, state } from './state';
 import {
   activate, activeTab, allTabs, applySettingsToTerminals, closeTab, connectedSessionIds, cycle, duplicateTab, hooks, initWorkspaceEvents,
@@ -316,6 +317,7 @@ async function init(): Promise<void> {
   setSidebarOpen(state.prefs.sidebarOpen);
 
   initTransfers();
+  initEditing();
   initSidebar({
     newSession: () => void editSession(),
     quickConnect: () => void quickConnect(),

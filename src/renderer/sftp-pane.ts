@@ -35,6 +35,26 @@ const baseOf = (p: string) => p.replace(/\/+$/, '').slice(p.replace(/\/+$/, '').
 const fmtDate = (ms: number) => (ms ? new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
 const plural = (n: number, one: string) => `${n.toLocaleString()} ${one}${n === 1 ? '' : 's'}`;
 
+/** Files that were copied or cut and wait to be pasted. Shared by every file browser, so it also works between servers. */
+interface FileClip {
+  connId: string;
+  /** Full remote paths. */
+  paths: string[];
+  cut: boolean;
+}
+let fileClip: FileClip | null = null;
+
+/** Files that make no sense in a text editor: these are downloaded when double-clicked. */
+const BINARY = new Set('exe dll so bin iso img pdf doc docx xls xlsx ppt pptx odt ods mp3 mp4 mkv avi mov wav flac ogg woff woff2 ttf otf class jar db sqlite pyc o a dmg'.split(' '));
+function isBinaryName(name: string): boolean {
+  const dot = name.lastIndexOf('.');
+  const e = dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
+  const icn = EXT[e];
+  return BINARY.has(e) || icn === 'file-archive' || icn === 'file-image';
+}
+
+const LARGE_FILE = 10 * 1024 * 1024;
+
 export interface SftpHooks {
   /** Types `cd <folder>` into the session's terminal (SSH shell sessions only). */
   openTerminal?: (dir: string) => void;
@@ -312,9 +332,11 @@ export class SftpPane {
 
   /** Updates highlights and the footer without touching the row elements. */
   private paintSelection(): void {
+    const cutHere = fileClip?.cut && fileClip.connId === this.getConn() ? new Set(fileClip.paths) : null;
     for (const [name, el] of this.rowEls) {
       const on = this.selected.has(name);
       el.classList.toggle('sel', on);
+      el.classList.toggle('cut', !!cutHere?.has(join(this.cwd, name)));
       el.setAttribute('aria-selected', String(on));
     }
     const n = this.selected.size;
@@ -355,8 +377,23 @@ export class SftpPane {
     const items: MenuEntry[] = [];
 
     if (one?.isDir) items.push({ label: 'Open', icon: 'folder-open', shortcut: 'Enter', run: () => this.open(one) });
+    if (one && !one.isDir) {
+      items.push(
+        { label: 'Edit', icon: 'pencil', shortcut: 'F4', run: () => void this.openFile(one, 'edit') },
+        { label: 'Open with default app', icon: 'external-link', run: () => void this.openFile(one, 'default') },
+        { label: 'Open with…', icon: 'external-link', run: () => void this.openFile(one, 'choose') },
+        'sep',
+      );
+    }
     items.push({ label: one ? (one.isDir ? 'Download folder…' : 'Download') : `Download ${sel.length} items…`, icon: 'download', run: () => void this.download() });
     if (this.hooks.openTerminal) items.push({ label: 'Open terminal here', icon: 'terminal', run: () => this.hooks.openTerminal!(folder ?? this.cwd) });
+
+    items.push(
+      'sep',
+      { label: 'Copy', icon: 'copy', shortcut: 'Ctrl+C', run: () => this.copySelection(false) },
+      { label: 'Cut', icon: 'scissors', shortcut: 'Ctrl+X', run: () => this.copySelection(true) },
+      { label: folder ? 'Paste into folder' : 'Paste', icon: 'clipboard-paste', shortcut: 'Ctrl+V', disabled: !fileClip, run: () => void this.paste(folder ?? this.cwd) },
+    );
 
     if (folder) {
       items.push(
@@ -384,6 +421,8 @@ export class SftpPane {
 
   private backgroundMenu(x: number, y: number): void {
     const items: MenuEntry[] = [
+      { label: 'Paste', icon: 'clipboard-paste', shortcut: 'Ctrl+V', disabled: !fileClip, run: () => void this.paste() },
+      'sep',
       { label: 'New folder…', icon: 'folder-plus', run: () => void this.newFolder() },
       { label: 'New file…', icon: 'file', run: () => void this.newFile() },
       { label: 'Upload files…', icon: 'upload', run: () => void this.upload() },
@@ -425,6 +464,15 @@ export class SftpPane {
       case 'Backspace': ev.preventDefault(); return this.up();
       case 'Delete': ev.preventDefault(); return void this.remove();
       case 'F2': ev.preventDefault(); return void this.rename();
+      case 'F4': {
+        ev.preventDefault();
+        const e = this.selectedEntries();
+        if (e.length === 1 && !e[0].isDir) void this.openFile(e[0], 'edit');
+        return;
+      }
+      case 'c': case 'C': if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey) { ev.preventDefault(); this.copySelection(false); } return;
+      case 'x': case 'X': if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey) { ev.preventDefault(); this.copySelection(true); } return;
+      case 'v': case 'V': if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey) { ev.preventDefault(); void this.paste(); } return;
       case 'F5': ev.preventDefault(); return void this.load(this.cwd);
       case 'a': if (ev.ctrlKey) { ev.preventDefault(); this.selectAll(); } return;
       case 'l': if (ev.ctrlKey) { ev.preventDefault(); this.editPath(); } return;
@@ -442,9 +490,60 @@ export class SftpPane {
     if (this.cwd && this.cwd !== '/') void this.load(parentOf(this.cwd));
   }
 
+  /** Double-click or Enter: folders open, text-like files open in the editor, other files are downloaded. */
   private open(e: SftpEntry): void {
-    if (e.isDir) void this.load(join(this.cwd, e.name));
-    else void this.download([e]);
+    if (e.isDir) return void this.load(join(this.cwd, e.name));
+    if (e.isLink) {
+      // A link may point to a folder.
+      const id = this.getConn();
+      if (!id) return;
+      void window.termApi.sftp.stat(id, join(this.cwd, e.name)).then(
+        (st) => (st.targetIsDir ? void this.load(join(this.cwd, e.name)) : isBinaryName(e.name) ? void this.download([e]) : void this.openFile(e, 'edit')),
+        (err) => toast('error', cleanError(err)),
+      );
+      return;
+    }
+    if (isBinaryName(e.name)) void this.download([e]);
+    else void this.openFile(e, 'edit');
+  }
+
+  /** Opens a file in a local program. Changes saved there are uploaded back automatically. */
+  private openFile(e: SftpEntry, mode: 'edit' | 'default' | 'choose'): Promise<void> {
+    return this.guard(async () => {
+      const id = this.conn();
+      if (!id) return;
+      if (e.size > LARGE_FILE && !(await askConfirm('Large file', `“${e.name}” is ${formatSize(e.size)}. It has to be downloaded before it can be opened. Continue?`, 'Open'))) return;
+      const r = await window.termApi.sftp.edit(id, join(this.cwd, e.name), mode);
+      if (!r) return;
+      toast('success', `Opened “${r.name}” in ${r.program}. When you save it there, it is uploaded to the server automatically.`, { ms: 6000 });
+    });
+  }
+
+  private copySelection(cut: boolean): void {
+    const id = this.conn();
+    const sel = this.selectedEntries();
+    if (!id || sel.length === 0) return;
+    fileClip = { connId: id, paths: sel.map((e) => join(this.cwd, e.name)), cut };
+    // The paths also go to the system clipboard as text, so they can be pasted into a terminal or a note.
+    void navigator.clipboard.writeText(fileClip.paths.join('\n')).catch(() => undefined);
+    this.paintSelection();
+    const what = sel.length === 1 ? `“${sel[0].name}”` : plural(sel.length, 'item');
+    toast('info', `${cut ? 'Cut' : 'Copied'} ${what}. Open a folder, even on another server, and choose Paste.`, { ms: 3500 });
+  }
+
+  /** Pastes what was copied or cut into `dir`. Nothing is overwritten: a clash gets a new name such as “a (1).txt”. */
+  private paste(dir = this.cwd): Promise<void> {
+    return this.guard(async () => {
+      const id = this.conn();
+      const clip = fileClip;
+      if (!id || !clip) return;
+      const r = await withResult(
+        () => window.termApi.sftp.copy(clip.connId, clip.paths, id, dir, clip.cut),
+        (x) => (x.files + x.folders === 0 && !x.skipped ? 'Nothing to move: the items are already in this folder.' : this.reportTransfer(clip.cut ? 'Moved' : 'Copied', x)),
+      );
+      if (clip.cut && r && r.skipped === 0) fileClip = null; // a cut can only be pasted once
+      await this.load(this.cwd);
+    });
   }
 
   private conn(): string | undefined {

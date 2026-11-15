@@ -534,3 +534,8 @@ dialog.palette[open] { animation: pop 0.12s ease-out; }
 .tr-sub { margin-top: 2px; color: var(--text-3); font-size: calc(var(--fs) * 0.8462); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes tr-slide { from { margin-left: 0; } to { margin-left: 62%; } }
 @media (prefers-reduced-motion: reduce) { .toast.transfer.indeterminate .tr-fill { animation: none; width: 100%; opacity: 0.4; } }
+
+/* ---- copy and cut in the file browser, editor setting */
+.sftp-row.cut { opacity: 0.45; }
+.row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.editor-path { margin-top: 4px; word-break: break-all; font-family: var(--font-mono, monospace); color: var(--text-2); }

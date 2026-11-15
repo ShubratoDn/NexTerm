@@ -42,6 +42,8 @@ Working across servers, network gear and your own machine usually means a termin
 - File browser beside the terminal: breadcrumb navigation, sortable columns, multi-select, keyboard control
 - Upload and download of files and whole folders (including drag and drop), rename, move, create file or folder, delete (with a preview when a folder is not empty)
 - Live transfer progress: size done and total, percent, speed and time left, with a file counter for folders
+- **Copy, cut and paste** files and folders (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`), within a server or from one server to another. Nothing is overwritten: a clash becomes `name (1).ext`
+- **Edit** a remote file in a local editor (double-click, or `F4`) or **Open with…** any program. Saving there uploads the file back automatically, and NexTerm warns before overwriting a file that changed on the server in the meantime. Choose the editor in Settings → Files
 - Right-click menus for files, folders and empty space, and a **Properties** dialog with size, dates, owner and editable permissions
 - "Open terminal here" runs `cd` to a folder in the shell beside it
 - Adjustable interface font and size (Settings → Appearance)
@@ -243,7 +245,7 @@ Your data lives in the app's data folder (`%APPDATA%\NexTerm` on Windows): `sess
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste (`Ctrl+C` copies when text is selected) |
 | `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Zoom in / out / reset |
 
-In the file browser: `Enter` open, `Backspace` parent folder, `F2` rename, `Alt+Enter` properties, `Del` delete, `F5` refresh, `Ctrl+A` select all, `Ctrl+L` edit the path.
+In the file browser: `Enter` open, `F4` edit, `Backspace` parent folder, `F2` rename, `Alt+Enter` properties, `Del` delete, `F5` refresh, `Ctrl+A` select all, `Ctrl+C` / `Ctrl+X` / `Ctrl+V` copy, cut and paste, `Ctrl+L` edit the path.
 
 Application shortcuts use `Ctrl+Shift` so they never steal keys that shells and editors rely on (`Ctrl+W`, `Ctrl+K`, `Ctrl+B`, …).
 

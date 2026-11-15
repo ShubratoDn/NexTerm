@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, webContents } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell, webContents } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,6 +11,8 @@ import { openLocal, openSerial, openSsh, openTelnet } from './connections';
 import type { Conn } from './connections';
 import { assertBaseName, chmodRemote, downloadTree, joinRemote, mkfileRemote, planLocalUpload, planRemoteDownload, removeTree, sftpOps, statRemote, treeSizeRemote, uniqueName, uploadTree } from './sftp';
 import { Transfer } from './transfer';
+import { EditManager, validateProgram } from './editor';
+import { copyItems } from './sftp-copy';
 import { checkSize, parseSessionInput, parseSettingsPatch } from './validate';
 import { MonitorHub } from './monitor';
 import { REGISTRY, buildPreview, detectSources, loadSource } from './importers';
@@ -31,7 +33,7 @@ const importAllowed = new Set<string>();
 const TITLEBAR_HEIGHT = 40;
 
 /** Starts a transfer whose progress is pushed to the window that asked for it. */
-function startTransfer(e: IpcMainInvokeEvent, direction: 'upload' | 'download', title: string): Transfer {
+function startTransfer(e: IpcMainInvokeEvent, direction: 'upload' | 'download' | 'copy', title: string): Transfer {
   return new Transfer(direction, title, (p) => {
     if (!e.sender.isDestroyed()) e.sender.send('transfer:progress', p);
   });
@@ -50,6 +52,7 @@ async function runTransfer<T>(t: Transfer, fn: () => Promise<T>): Promise<T> {
 }
 
 let hub: MonitorHub;
+let editing: EditManager;
 let sessions: SessionStore;
 let settings: SettingsStore;
 let knownHosts: KnownHosts;
@@ -341,6 +344,55 @@ function registerIpc(): void {
     });
   });
 
+  // ---- open remote files in a local program (Edit / Open with); saved changes are uploaded again
+  handle('sftp:edit', async (e, id, p, mode) => {
+    if (mode !== 'edit' && mode !== 'default' && mode !== 'choose') throw new Error('invalid mode');
+    return editing.start(e.sender.id, id, str(p, 'path'), mode);
+  });
+  handle('edit:resolve', (e, id, overwrite) => {
+    if (typeof id !== 'number') throw new Error('invalid edit');
+    editing.resolve(e.sender.id, id, overwrite === true);
+  });
+  // The editor program can only be chosen through this native dialog, so a compromised page cannot pick one.
+  handle('editor:choose', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)!;
+    const r = await dialog.showOpenDialog(win, {
+      title: 'Choose the program used to edit files',
+      properties: ['openFile'],
+      filters: process.platform === 'win32' ? [{ name: 'Programs', extensions: ['exe', 'com'] }] : undefined,
+    });
+    if (r.canceled || !r.filePaths[0]) return null;
+    const err = validateProgram(r.filePaths[0]);
+    if (err) throw new Error(err);
+    settings.patch({ editorPath: r.filePaths[0] });
+    return r.filePaths[0];
+  });
+  handle('editor:clear', () => {
+    settings.patch({ editorPath: '' });
+  });
+
+  // ---- copy / cut / paste of remote files, on one server or between two
+  handle('sftp:copy', async (e, fromId, paths, toId, dir, move) => {
+    if (!Array.isArray(paths) || paths.length === 0 || paths.length > 1000) throw new Error('invalid file list');
+    const from = await getSftp(fromId, e.sender.id);
+    const to = fromId === toId ? from : await getSftp(toId, e.sender.id);
+    const items = paths.map((x) => str(x, 'path'));
+    const isMove = move === true;
+    let t: Transfer | undefined;
+    try {
+      const r = await copyItems(from, items, to, str(dir, 'path'), { move: isMove, sameConn: fromId === toId }, (bytes, files) => {
+        t = startTransfer(e, 'copy', items.length === 1 ? path.posix.basename(items[0].replace(/\/+$/, '')) : `${items.length} items`);
+        t.setTotals(bytes, files);
+        return t;
+      });
+      t?.finish();
+      return r;
+    } catch (err) {
+      t?.finish((err as Error).message);
+      throw err;
+    }
+  });
+
   handle('sftp:mkfile', async (e, id, p) => mkfileRemote(await getSftp(id, e.sender.id), str(p, 'path')));
   handle('sftp:stat', async (e, id, p) => statRemote(await getSftp(id, e.sender.id), str(p, 'path')));
   handle('sftp:chmod', async (e, id, p, mode) => {
@@ -507,6 +559,29 @@ app.whenReady().then(() => {
       if (wc && !wc.isDestroyed()) wc.send('monitor:stats', connId, stats);
     },
   );
+  editing = new EditManager({
+    sftp: (connId, owner) => getSftp(connId, owner),
+    send: (owner, status) => {
+      const wc = webContents.fromId(owner);
+      if (wc && !wc.isDestroyed()) wc.send('edit:status', status);
+    },
+    getEditorPath: () => settings.get().editorPath,
+    setEditorPath: (p) => void settings.patch({ editorPath: p }),
+    chooseProgram: async (owner, title) => {
+      const wc = webContents.fromId(owner);
+      const win = wc ? BrowserWindow.fromWebContents(wc) : null;
+      const opts = { title, properties: ['openFile' as const], filters: process.platform === 'win32' ? [{ name: 'Programs', extensions: ['exe', 'com'] }] : undefined };
+      const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
+      return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
+    },
+    openDefault: (file) => shell.openPath(file),
+    startTransfer: (owner, direction, title) =>
+      new Transfer(direction, title, (p) => {
+        const wc = webContents.fromId(owner);
+        if (wc && !wc.isDestroyed()) wc.send('transfer:progress', p);
+      }),
+    tmpRoot: path.join(app.getPath('userData'), 'edit-tmp'),
+  });
   Menu.setApplicationMenu(null);
   registerIpc();
   createWindow();
@@ -517,6 +592,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   hub?.stopAll();
+  editing?.cleanup();
   for (const l of live.values()) {
     try {
       l.conn.close();

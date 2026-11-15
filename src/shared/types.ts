@@ -52,6 +52,11 @@ export interface Settings {
   monitor: boolean;
   /** Seconds between server statistics samples. */
   monitorInterval: number;
+  /**
+   * Program used by "Edit" in the file browser (full path). Empty means the system's plain text editor.
+   * It can only be set through the native file chooser in the main process, never from the page.
+   */
+  editorPath: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -65,6 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
   uiFontSize: 13,
   monitor: true,
   monitorInterval: 3,
+  editorPath: '',
 };
 
 export interface OpenRequest {
@@ -240,7 +246,7 @@ export interface TreeTransferResult {
 /** Live state of one file transfer, pushed from the main process while it runs. */
 export interface TransferProgress {
   id: number;
-  direction: 'upload' | 'download';
+  direction: 'upload' | 'download' | 'copy';
   /** Short description, for example "report.csv" or "3 items". */
   title: string;
   state: 'preparing' | 'running' | 'done' | 'error';
@@ -255,4 +261,21 @@ export interface TransferProgress {
   /** Name of the file being transferred right now. */
   current: string;
   error?: string;
+}
+
+/** What happened to a remote file that is open in a local program. */
+export interface EditStatus {
+  id: number;
+  name: string;
+  remotePath: string;
+  state: 'uploading' | 'saved' | 'conflict' | 'error';
+  message?: string;
+}
+
+/** A remote file that was opened in a local program; saved changes are uploaded automatically. */
+export interface EditOpened {
+  id: number;
+  name: string;
+  /** Short name of the program it was opened in. */
+  program: string;
 }
